@@ -1,4 +1,3 @@
-
 // ===== Stato & persistenza =====
 const state = {
   people: {},           // id -> { id, name, photo, parents: [id,id?], gender }
@@ -77,7 +76,7 @@ async function loadFromUrlIfPresent() {
     }
   }
   try {
-    const data = await fetchJson("./data.json");
+    const data = await fetchJson("./data.json?ts=" + Date.now());
     if (data && data.people && data.order) {
       normalizeAndAdoptState(data);
       saveState();
@@ -118,7 +117,7 @@ function fileToDataURL(file) {
   });
 }
 
-// ===== Operazioni =====
+// ===== Operazioni (qui manteniamo solo visualizzazione; CRUD UI può essere aggiunta) =====
 async function addPerson(name, photoUrl, photoFile, parentA = null, parentB = null, spouseWith = null, gender = '') {
   const id = String(state.nextId++);
   let photo = (photoUrl || '').trim();
@@ -132,7 +131,6 @@ async function addPerson(name, photoUrl, photoFile, parentA = null, parentB = nu
   if (spouseWith) uniquePushSpouse(id, spouseWith);
   layout();
   render();
-  refreshSelectors();
   saveState();
   return id;
 }
@@ -146,7 +144,7 @@ function deleteSelected() {
   removeParentRefsTo(id);
   removeSpouseLinksOf(id);
   state.selected = null;
-  layout(); render(); refreshSelectors(); saveState();
+  layout(); render(); saveState();
 }
 
 // ===== Layout =====
@@ -176,7 +174,7 @@ function layout() {
     if (!byLevel[d]) byLevel[d] = [];
     byLevel[d].push(id);
   }
-  const levelGap = 220; const nodeGap = 220;
+  const levelGap = 220; const nodeGap = 260; // un po' più largo per schede
   for (const [lvl, arr] of Object.entries(byLevel)) {
     arr.forEach((id, i) => {
       positions[id] = { x: i * nodeGap, y: Number(lvl) * levelGap };
@@ -216,9 +214,14 @@ function render() {
     node.style.left = (pos.x + 30) + 'px'; node.style.top = (pos.y + 30) + 'px';
     node.dataset.id = id;
     node.innerHTML = `
-      <img class="avatar" src="${p.photo || 'https://via.placeholder.com/200?text=Foto'}" alt="${p.name}">
-      <div class="label">${p.name || 'Senza nome'}</div>
-      <div class="sub">ID ${id}</div>
+      <div class="person-card">
+        <span class="badge-sex">${p.gender || ''}</span>
+        <img class="avatar" src="${p.photo || 'https://via.placeholder.com/200?text=Foto'}" alt="${p.name}">
+        <div>
+          <div class="label">${p.name || 'Senza nome'}</div>
+          <div class="sub">ID ${id}</div>
+        </div>
+      </div>
     `;
     node.addEventListener('click', () => selectNode(id));
     canvas.appendChild(node);
@@ -240,8 +243,8 @@ function drawLinks() {
     for (const pId of ps) {
       const par = getPos(pId);
       if (!par) continue;
-      const x1 = par.x + 100; const y1 = par.y + 110;
-      const x2 = child.x + 100; const y2 = child.y + 20;
+      const x1 = par.x + 110; const y1 = par.y + 110;
+      const x2 = child.x + 110; const y2 = child.y + 20;
       const path = document.createElementNS('http://www.w3.org/2000/svg','path');
       path.setAttribute('class','link');
       path.setAttribute('d', pathCubic(x1,y1,x2,y2));
@@ -251,8 +254,8 @@ function drawLinks() {
   for (const [a,b] of state.spouses) {
     const pa = getPos(a), pb = getPos(b);
     if (!pa || !pb) continue;
-    const x1 = pa.x + 100, y1 = pa.y + 65;
-    const x2 = pb.x + 100, y2 = pb.y + 65;
+    const x1 = pa.x + 110, y1 = pa.y + 60;
+    const x2 = pb.x + 110, y2 = pb.y + 60;
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('class','link spouse');
     path.setAttribute('d', pathCubic(x1,y1,x2,y2));
@@ -267,6 +270,32 @@ function selectNode(id) {
   const el = canvas.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
   if (el) el.classList.add('selected');
 }
+
+// ===== Drag & Drop nodi (facoltativo: commentato; abilita se vuoi spostamento manuale) =====
+// let draggingNode = null;
+// let dragStart = null;
+// canvas.addEventListener('mousedown', (e) => {
+//   const nodeEl = e.target.closest('.node'); if (!nodeEl) return;
+//   const id = nodeEl.dataset.id; draggingNode = id;
+//   nodeEl.classList.add('dragging');
+//   const o = state.offsets[id] || (state.offsets[id] = {dx:0, dy:0});
+//   dragStart = { mx: e.clientX, my: e.clientY, dx0: o.dx, dy0: o.dy };
+//   e.preventDefault();
+// });
+// window.addEventListener('mousemove', (e) => {
+//   if (!draggingNode || !dragStart) return;
+//   const id = draggingNode; const o = state.offsets[id] || (state.offsets[id] = {dx:0, dy:0});
+//   const k = state.transform.k || 1;
+//   o.dx = dragStart.dx0 + (e.clientX - dragStart.mx) / k;
+//   o.dy = dragStart.dy0 + (e.clientY - dragStart.my) / k;
+//   render();
+// });
+// window.addEventListener('mouseup', () => {
+//   if (!draggingNode) return;
+//   const el = canvas.querySelector(`.node[data-id="${CSS.escape(draggingNode)}"]`);
+//   if (el) el.classList.remove('dragging');
+//   draggingNode = null; dragStart = null; saveState();
+// });
 
 // ===== Pan & Zoom =====
 const viewport = document.getElementById('viewport');
@@ -313,16 +342,30 @@ function applyTransform() {
 }
 
 // ===== Fit to view & Print =====
+function computeBounds() {
+  if (state.order.length === 0) return {minX:0, minY:0, maxX:0, maxY:0};
+  let minX = +Infinity, minY = +Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const id of state.order) {
+    const {x,y} = getPos(id);
+    const left = x + 30;
+    const top  = y + 30;
+    const right = left + 220;
+    const bottom = top + 110;
+    if (left < minX) minX = left;
+    if (top  < minY) minY = top;
+    if (right  > maxX) maxX = right;
+    if (bottom > maxY) maxY = bottom;
+  }
+  return {minX, minY, maxX, maxY};
+}
 function fitToView(pad = 40) {
   const vp = document.getElementById('viewport');
   const {minX, minY, maxX, maxY} = computeBounds();
   const contentW = Math.max(1, maxX - minX);
   const contentH = Math.max(1, maxY - minY);
-
   const vw = vp.clientWidth, vh = vp.clientHeight;
   const scale = Math.min((vw - pad*2)/contentW, (vh - pad*2)/contentH);
   const k = Math.max(0.4, Math.min(2.2, scale));
-
   state.transform.k = k;
   const cx = (minX + maxX) / 2;
   const cy = (minY + maxY) / 2;
@@ -331,24 +374,6 @@ function fitToView(pad = 40) {
   applyTransform();
   saveState();
 }
-
-function computeBounds() {
-  if (state.order.length === 0) return {minX:0, minY:0, maxX:0, maxY:0};
-  let minX = +Infinity, minY = +Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const id of state.order) {
-    const {x,y} = getPos(id);
-    const left = x + 30;
-    const top  = y + 30;
-    const right = left + 140;
-    const bottom = top + 140;
-    if (left < minX) minX = left;
-    if (top  < minY) minY = top;
-    if (right  > maxX) maxX = right;
-    if (bottom > maxY) maxY = bottom;
-  }
-  return {minX, minY, maxX, maxY};
-}
-
 function printView() {
   const prev = {...state.transform};
   fitToView(30);
@@ -361,25 +386,17 @@ function printView() {
   setTimeout(()=>window.print(), 100);
 }
 
-// ===== Avvio =====
-function bootstrapDemo() {
-  const idNonno = String(state.nextId++);
-  const idNonna = String(state.nextId++);
-  state.people[idNonno] = { id:idNonno, name:'Giuseppe (nonno)', photo:'', parents:[], gender:'M' };
-  state.people[idNonna] = { id:idNonna, name:'Anna (nonna)',     photo:'', parents:[], gender:'F' };
-  state.order.push(idNonno,idNonna);
-  uniquePushSpouse(idNonno, idNonna);
-}
-
-// ===== Zoom card con doppio click =====
+// ===== Zoom card con doppio click (con stopPropagation per non resettare) =====
 canvas.addEventListener('dblclick', e => {
   const nodeEl = e.target.closest('.node');
   if (!nodeEl) return;
+  e.preventDefault();
+  e.stopPropagation();
+
   const id = nodeEl.dataset.id;
   const p = byId(id);
   if (!p) return;
 
-  // crea overlay
   const overlay = document.createElement('div');
   overlay.className = 'overlay-card';
   overlay.innerHTML = `
@@ -393,22 +410,49 @@ canvas.addEventListener('dblclick', e => {
   `;
   document.body.appendChild(overlay);
 
-  // chiudi overlay
   overlay.querySelector('.close-btn').addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', ev => {
-    if (ev.target === overlay) overlay.remove();
-  });
+  overlay.addEventListener('click', ev => { if (ev.target === overlay) overlay.remove(); });
+});
+window.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') document.querySelector('.overlay-card')?.remove();
 });
 
+// ===== Controls buttons =====
+document.getElementById('zoomIn')?.addEventListener('click', () => {
+  const evt = new WheelEvent('wheel', { deltaY: -120, bubbles: true, cancelable: true });
+  document.getElementById('viewport').dispatchEvent(evt);
+});
+document.getElementById('zoomOut')?.addEventListener('click', () => {
+  const evt = new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true });
+  document.getElementById('viewport').dispatchEvent(evt);
+});
+document.getElementById('reset')?.addEventListener('click', () => {
+  state.transform = { x: 300, y: 120, k: 1 }; applyTransform(); saveState();
+});
+document.getElementById('fit')?.addEventListener('click', () => fitToView(40));
+document.getElementById('print')?.addEventListener('click', () => printView());
 
+// ===== Avvio =====
+function bootstrapDemo() {
+  const idNonno = String(state.nextId++);
+  const idNonna = String(state.nextId++);
+  const idPadre = String(state.nextId++);
+  const idMadre = String(state.nextId++);
+  const idTu    = String(state.nextId++);
+
+  state.people[idNonno] = { id:idNonno, name:'Giuseppe (nonno)', photo:'', parents:[], gender:'M' };
+  state.people[idNonna] = { id:idNonna, name:'Anna (nonna)',     photo:'', parents:[], gender:'F' };
+  state.people[idPadre] = { id:idPadre, name:'Marco (padre)',     photo:'', parents:[idNonno,idNonna], gender:'M' };
+  state.people[idMadre] = { id:idMadre, name:'Lucia (madre)',     photo:'', parents:[], gender:'F' };
+  state.people[idTu]    = { id:idTu,    name:'Renato (tu)',       photo:'', parents:[idPadre,idMadre], gender:'M' };
+  state.order.push(idNonno,idNonna,idPadre,idMadre,idTu);
+  uniquePushSpouse(idNonno,idNonna);
+  uniquePushSpouse(idPadre,idMadre);
+}
 
 (async function init(){
   let ok = loadState();
-  if (!ok) {
-    ok = await loadFromUrlIfPresent();
-  }
-  if (!ok) {
-    bootstrapDemo();
-  }
+  if (!ok) ok = await loadFromUrlIfPresent();
+  if (!ok) bootstrapDemo();
   layout(); render(); saveState();
 })();
