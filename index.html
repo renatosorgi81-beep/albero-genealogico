@@ -10,12 +10,13 @@
   <header>
     <div>
       <h1>Albero genealogico interattivo</h1>
-      <div class="hint">Schede rettangolari con foto, <strong>blu</strong> = maschio, <strong>rosa</strong> = femmina.
-        Linea <strong>continua</strong> genitore→figlio, <strong>tratteggiata</strong> coniugi.
-        Doppio click su una scheda per vederla ingrandita.</div>
+      <div class="hint">
+        Schede rettangolari con foto — <strong>blu</strong> = maschio, <strong>rosa</strong> = femmina.
+        Linea <strong>continua</strong>: genitore→figlio • <strong>tratteggiata</strong>: coniugi.
+        Doppio click su una scheda per ingrandirla.
+      </div>
     </div>
     <div class="toolbar">
-      <!-- Pulsanti di controllo vista -->
       <button class="iconbtn" id="zoomOut" title="Zoom -">−</button>
       <button class="iconbtn" id="reset" title="Reset vista">⟳</button>
       <button class="iconbtn" id="fit" title="Adatta alla finestra">⤢</button>
@@ -27,6 +28,7 @@
   <main>
     <aside>
       <div class="stack">
+
         <div class="card">
           <h2>Istruzioni</h2>
           <ul class="mini-list">
@@ -39,13 +41,107 @@
             <div><span class="legend-line spouse"></span> Coniugi</div>
           </div>
         </div>
+
+        <!-- Card: Aggiungi persona -->
+        <div class="card">
+          <h2>Aggiungi persona</h2>
+          <div class="stack">
+            <div class="field">
+              <label for="name">Nome completo</label>
+              <input id="name" placeholder="Es. Mario Rossi" />
+            </div>
+            <div class="field">
+              <label for="photo">URL foto (https://...)</label>
+              <input id="photo" placeholder="https://..." />
+            </div>
+            <div class="field">
+              <label for="photoFile">Foto locale</label>
+              <input id="photoFile" type="file" accept="image/*" />
+            </div>
+            <div class="field">
+              <label for="gender">Sesso</label>
+              <select id="gender">
+                <option value="">(non specificato)</option>
+                <option value="M">Maschio</option>
+                <option value="F">Femmina</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="parentA">Genitore A (opz.)</label>
+              <select id="parentA"></select>
+            </div>
+            <div class="field">
+              <label for="parentB">Genitore B (opz.)</label>
+              <select id="parentB"></select>
+            </div>
+            <div class="field">
+              <label for="spouseWith">Coniuge di (opz.)</label>
+              <select id="spouseWith"></select>
+            </div>
+            <button class="primary" id="add">Aggiungi</button>
+          </div>
+          <div class="legend">Compila i campi e premi “Aggiungi”. Genitori e coniuge sono opzionali.</div>
+        </div>
+
+        <!-- Card: Modifica selezionato -->
+        <div class="card">
+          <h2>Modifica selezionato</h2>
+          <div class="stack">
+            <div class="field">
+              <label for="editName">Nome completo</label>
+              <input id="editName" placeholder="Nome completo" />
+            </div>
+            <div class="field">
+              <label for="editPhoto">URL foto (https://...)</label>
+              <input id="editPhoto" placeholder="https://..." />
+            </div>
+            <div class="field">
+              <label for="editPhotoFile">Foto locale</label>
+              <input id="editPhotoFile" type="file" accept="image/*" />
+            </div>
+            <div class="field">
+              <label for="editGender">Sesso</label>
+              <select id="editGender">
+                <option value="">(non specificato)</option>
+                <option value="M">Maschio</option>
+                <option value="F">Femmina</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="editParentA">Genitore A</label>
+              <select id="editParentA"></select>
+            </div>
+            <div class="field">
+              <label for="editParentB">Genitore B</label>
+              <select id="editParentB"></select>
+            </div>
+            <div class="field">
+              <label for="editSpouseWith">Coniuge di</label>
+              <select id="editSpouseWith"></select>
+            </div>
+            <button class="primary" id="applyEdit">Applica modifiche</button>
+            <button class="danger" id="delete">Elimina selezionato</button>
+          </div>
+          <div class="legend">Clicca una scheda nell’albero per caricare qui i suoi dati.</div>
+        </div>
+
+        <!-- Card: Esporta / Importa -->
+        <div class="card">
+          <h2>Esporta / Importa</h2>
+          <div class="stack">
+            <button class="primary" id="export">Esporta JSON</button>
+            <button class="primary" id="reloadRemote" type="button">Ricarica da data.json</button>
+            <input type="file" id="import" accept="application/json" />
+          </div>
+          <div class="legend">“Esporta” salva un file .json. “Scegli file” carica un .json. “Ricarica” legge il data.json del repo.</div>
+        </div>
+
       </div>
     </aside>
 
     <div class="viewport" id="viewport">
       <div id="canvas">
         <svg class="links" id="links" xmlns="http://www.w3.org/2000/svg"></svg>
-        <!-- i nodi vengono creati via JS -->
       </div>
       <div class="pan-hint">💡 Trascina per muovere • Rotellina per zoom • Doppio click su una scheda per ingrandire</div>
     </div>
