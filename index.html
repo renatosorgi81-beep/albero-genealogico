@@ -64,22 +64,48 @@
         </div>
 
         <!-- Card: Modifica selezionato -->
-        <div class="card">
-          <h2>Modifica selezionato</h2>
-          <div class="stack">
-            <input id="editName" placeholder="Nome completo"
-                   title="Modifica nome/cognome della persona selezionata" />
-            <input id="editPhoto" placeholder="URL foto (https://...)" 
-                   title="URL pubblico della foto; puoi caricarne una locale sotto" />
-            <input id="editPhotoFile" type="file" accept="image/*" 
-                   title="Scegli una foto locale; sostituisce eventuale URL" />
-            <select id="editParentA" title="Assegna o modifica il primo genitore"></select>
-            <select id="editParentB" title="Assegna o modifica il secondo genitore"></select>
-            <select id="editSpouseWith" title="Assegna o modifica il coniuge"></select>
-            <button class="primary" id="applyEdit">Applica modifiche</button>
-          </div>
-          <div class="legend">Clicca un nodo nell'albero per caricare qui i suoi dati e modificarli.</div>
-        </div>
+      
+<!-- Card: Modifica selezionato (sostituisci questo blocco al tuo attuale) -->
+<div class="card">
+  <h2>Modifica selezionato</h2>
+  <div class="stack">
+    <label class="legend" for="editName">Nome e cognome</label>
+    <input id="editName" placeholder="Nome completo"
+           title="Modifica nome/cognome della persona selezionata" />
+
+    <label class="legend" for="editPhoto">Foto (URL)</label>
+    <input id="editPhoto" placeholder="URL foto (https://...)"
+           title="URL pubblico della foto; puoi caricarne una locale sotto" />
+
+    <label class="legend" for="editPhotoFile">Foto locale (sovrascrive URL)</label>
+    <input id="editPhotoFile" type="file" accept="image/*"
+           title="Scegli una foto dal computer; ha priorità sull’URL" />
+
+    <label class="legend" for="editParentA">
+      Genitore A (obiettivo: creare figli e fratelli)
+    </label>
+    <select id="editParentA"
+            title="Primo genitore. Se due persone condividono lo stesso Genitore A/B risultano fratelli."></select>
+    <div class="legend">Tipico: “Padre” o “Genitore sconosciuto”.</div>
+
+    <label class="legend" for="editParentB">
+      Genitore B (opzionale, diverso da Genitore A)
+    </label>
+    <select id="editParentB"
+            title="Secondo genitore (opzionale). Deve essere diverso da Genitore A."></select>
+    <div class="legend">Tipico: “Madre”. Lascia vuoto se non noto.</div>
+
+    <label class="legend" for="editSpouseWith">
+      Coniuge di (linea tratteggiata)
+    </label>
+    <select id="editSpouseWith"
+            title="Collega questa persona in matrimonio con un nodo esistente."></select>
+    <div class="legend">Usa per coppie/sposi; non influenza la fratria.</div>
+
+    <button class="primary" id="applyEdit">Applica modifiche</button>
+  </div>
+  <div class="legend">Suggerimento: per segnare fratelli assegna lo stesso “Genitore A” (o B) a più persone.</div>
+</div>
 
         <!-- Card: Esporta / Importa -->
         <div class="card">
