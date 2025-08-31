@@ -98,3 +98,8 @@ svg.links { position: absolute; inset: 0; overflow: visible; }
 .iconbtn {
   width: 38px; height: 38px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; cursor: pointer; font-weight: 900;
 }
+@media print {
+  header, aside, .pan-hint, .footer-bar { display: none !important; }
+  .viewport { position: static; overflow: visible; background: #fff !important; }
+  #canvas { transform: none !important; }
+}
