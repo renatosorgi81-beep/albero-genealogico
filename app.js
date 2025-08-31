@@ -30,7 +30,7 @@ function loadState() {
     state.people  = data.people;
     state.spouses = data.spouses || [];
     state.order   = data.order;
-    state.nextId  = data.nextId || (Math.max(0, ...state.order.map(Number)) + 1);
+    state.nextId  = data.nextId || (Math.max(0, ...data.order.map(Number)) + 1);
     state.offsets = data.offsets || {};
     return true;
   } catch (e) {
@@ -42,6 +42,19 @@ function loadState() {
 // ===== Helpers =====
 const byId = id => state.people[id];
 const normPair = (a,b) => [String(a), String(b)].sort();
+
+// ritorna l'ID del coniuge (se esiste), altrimenti null
+function spouseOf(id) {
+  for (const [a,b] of state.spouses) {
+    if (a === id) return b;
+    if (b === id) return a;
+  }
+  return null;
+}
+function coupleKey(a, b) {
+  if (!a || !b) return null;
+  return [String(a), String(b)].sort().join('|');
+}
 
 function uniquePushSpouse(a, b) {
   const [x,y] = normPair(a,b);
@@ -101,8 +114,11 @@ function deleteSelected() {
   layout(); render(); refreshSelectors(); saveState();
 }
 
-// ===== Layout per livelli =====
-function computeDepths() {
+// ===== Layout "albero classico": generazioni per riga, coniugi affiancati =====
+const positions = {}; // id -> {x, y}
+
+function layout() {
+  // 1) Calcola profondità (generazione) dai nodi radice (senza genitori)
   const indeg = {}; const depth = {}; const children = {};
   for (const id of state.order) { indeg[id] = (byId(id).parents || []).length; children[id] = []; }
   for (const id of state.order) { for (const p of byId(id).parents) { if (children[p]) children[p].push(id); } }
@@ -116,34 +132,71 @@ function computeDepths() {
     }
   }
   for (const id of state.order) if (depth[id] == null) depth[id] = 0;
-  return { depth };
-}
 
-const positions = {}; // id -> {x, y}
-function layout() {
-  const { depth } = computeDepths();
+  // 2) Raggruppa per livello (generazione)
   const byLevel = {};
   for (const id of state.order) {
     const d = depth[id];
     if (!byLevel[d]) byLevel[d] = [];
     byLevel[d].push(id);
   }
-  const levelGap = 200; const nodeGap = 200;
+
+  // 3) Dentro ogni livello: metti le coppie vicine e poi i singoli
+  const levelGap = 200;    // distanza verticale tra generazioni
+  const coupleGap = 40;    // distanza tra coniugi della stessa coppia
+  const slotGap   = 220;   // distanza tra "unità" (coppia o singolo)
+
+  const occupiedCouple = new Set();
+  const levelUnits = {}; // livello -> array di unità { type:'couple', a,b } | { type:'single', id }
+
   for (const [lvl, arr] of Object.entries(byLevel)) {
-    arr.forEach((id, i) => {
-      positions[id] = { x: i * nodeGap, y: Number(lvl) * levelGap };
-    });
-  }
-  for (const id of state.order) {
-    const ps = byId(id).parents;
-    if (ps && ps.length) {
-      const xs = ps.map(p => positions[p]?.x).filter(x => x != null);
-      if (xs.length) {
-        const avg = xs.reduce((a,b)=>a+b,0)/xs.length;
-        positions[id].x = avg;
+    const units = [];
+
+    // Prima le coppie se entrambi nel livello
+    for (const id of arr) {
+      if (occupiedCouple.has(id)) continue;
+      const s = spouseOf(id);
+      if (s && byLevel[lvl].includes(s)) {
+        if (!occupiedCouple.has(id) && !occupiedCouple.has(s)) {
+          units.push({ type: 'couple', a: id, b: s });
+          occupiedCouple.add(id); occupiedCouple.add(s);
+        }
       }
     }
+    // Poi i singoli rimasti
+    for (const id of arr) {
+      if (occupiedCouple.has(id)) continue;
+      units.push({ type: 'single', id });
+    }
+    levelUnits[lvl] = units;
   }
+
+  // 4) Posiziona le unità del livello in orizzontale
+  for (const [lvl, units] of Object.entries(levelUnits)) {
+    units.forEach((u, i) => {
+      const baseX = i * slotGap;
+      const baseY = Number(lvl) * levelGap;
+      if (u.type === 'couple') {
+        positions[u.a] = { x: baseX - coupleGap/2, y: baseY };
+        positions[u.b] = { x: baseX + coupleGap/2, y: baseY };
+      } else {
+        positions[u.id] = { x: baseX, y: baseY };
+      }
+    });
+  }
+
+  // 5) Centra i figli sotto la media dei genitori (o sotto il genitore singolo)
+  for (const id of state.order) {
+    const ps = byId(id).parents || [];
+    if (!ps.length) continue;
+    const xs = ps.map(p => positions[p]?.x).filter(x => x != null);
+    if (xs.length) {
+      const avg = xs.reduce((a,b)=>a+b,0)/xs.length;
+      positions[id].x = avg;
+    }
+  }
+
+  // 6) Normalizza per evitare x negative
   const xs = Object.values(positions).map(p=>p.x);
   const minX = Math.min(...xs, 0);
   if (minX < 0) for (const id of state.order) positions[id].x -= minX;
