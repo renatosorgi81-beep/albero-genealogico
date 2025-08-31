@@ -46,7 +46,7 @@ button.danger {
 main {
   height: calc(100% - 72px);
   display: grid;
-  grid-template-columns: minmax(300px, 420px) 1fr; /* sidebar flessibile e leggibile */
+  grid-template-columns: minmax(320px, 460px) 1fr; /* sidebar ampia per evitare scroll orizzontale */
 }
 
 aside {
@@ -65,35 +65,35 @@ aside h2 { font-size: 14px; margin: 0 0 10px; }
 /* Canvas */
 .viewport {
   position: relative; overflow: hidden; background: radial-gradient(1200px 800px at 20% -10%, #ffffff, #f3f4f6);
-  touch-action: pan-x pan-y; /* miglior pan su touch */
+  touch-action: pan-x pan-y;
 }
 
 #canvas { position: absolute; inset: 0; transform-origin: 0 0; user-select: none; }
-
-/* Non catturare i click sui path, così il pan funziona meglio */
 svg.links { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
 
+/* linee */
 .link { stroke: var(--line); stroke-width: 2; fill: none; }
 .link.spouse  { stroke-dasharray: 6 4; }
 .link.sibling { stroke: #c0cad9; stroke-dasharray: 3 6; stroke-width: 1.5; opacity: .9; }
 
 .legend-lines .legend-line {
-  width: 40px; height: 0; border-top: 2px solid var(--line);
+  width: 48px; height: 0; border-top: 2px solid var(--line);
   display: inline-block; vertical-align: middle; margin-right: 6px;
 }
 .legend-lines .legend-line.spouse  { border-top-style: dashed; }
 .legend-lines .legend-line.sibling { border-top: 1.5px dashed #c0cad9; }
 
-/* ===== NODO CARD RETTANGOLARE ===== */
+/* ===== NODO CARD ===== */
 .node {
-  position: absolute; width: 200px; height: 110px; text-align: left; cursor: grab;
+  position: absolute; width: 220px; height: 110px; text-align: left; cursor: grab;
 }
 .node.dragging { cursor: grabbing; }
 
 .person-card {
+  position: relative;
   height: 100%;
   background: #fff;
-  border: 2px solid #d1d5db; /* default neutro */
+  border: 2px solid #d1d5db;
   border-radius: 12px;
   box-shadow: 0 6px 14px rgba(0,0,0,.06);
   padding: 10px 12px;
@@ -104,11 +104,15 @@ svg.links { position: absolute; inset: 0; overflow: visible; pointer-events: non
   row-gap: 4px;
 }
 
-/* testata sottile */
+/* barra superiore (come nello screenshot) */
 .person-card::before {
   content: "";
   position: absolute;
-  margin-top: -10px;
+  left: 0; right: 0; top: 0;
+  height: 8px;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  background: #e5e7eb; /* sovrascritto per sesso */
 }
 
 /* avatar */
@@ -121,22 +125,25 @@ svg.links { position: absolute; inset: 0; overflow: visible; pointer-events: non
 .label { font-weight: 800; font-size: 14px; line-height: 1.1; margin-top: 2px; }
 .sub   { color: var(--muted); font-size: 11px; }
 
-/* badge sesso (piccolo) */
+/* badge sesso */
 .badge-sex {
   display: inline-block; padding: 2px 6px; border-radius: 999px;
   font-size: 10px; font-weight: 700; color: #fff; margin-top: 2px;
 }
 
-/* Colori sesso: bordo + badge */
+/* colori sesso (bordo + barra + badge) */
 .node.male   .person-card { border-color: var(--male); }
+.node.male   .person-card::before { background: var(--male); }
 .node.male   .badge-sex   { background: var(--male); }
+
 .node.female .person-card { border-color: var(--female); }
+.node.female .person-card::before { background: var(--female); }
 .node.female .badge-sex   { background: var(--female); }
 
-/* stato selezionato */
+/* selezione */
 .node.selected .person-card { outline: 3px solid #0ea5e9; }
 
-/* tooltip/prompt */
+/* varie */
 .legend  { font-size: 12px; color: var(--muted); }
 .pan-hint { position: absolute; bottom: 12px; left: 12px; background: rgba(255,255,255,.9); padding: 6px 10px; border-radius: 10px; border: 1px solid #e5e7eb; font-size: 12px; }
 
@@ -145,17 +152,15 @@ svg.links { position: absolute; inset: 0; overflow: visible; pointer-events: non
   width: 38px; height: 38px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; cursor: pointer; font-weight: 900;
 }
 
-/* ===== Stampa pulita e compatta ===== */
+/* Stampa compatta */
 @media print {
   header, aside, .pan-hint, .footer-bar { display: none !important; }
   .viewport { position: static; overflow: visible; background: #fff !important; }
 
-  /* Manteniamo la transform per adattare con il bottone "Adatta" prima di stampare */
-
-  .node { width: 180px; height: 96px; }
+  .node { width: 200px; height: 96px; }
   .person-card { border-width: 1.5px; box-shadow: none !important; padding: 8px 10px; }
-  .avatar { width: 38px; height: 38px; border-width: 1px; }
+  .avatar { width: 36px; height: 36px; border-width: 1px; }
   .label  { font-size: 12px; }
-  .sub    { display: none; }   /* pulizia */
+  .sub    { display: none; }
   .link   { stroke-width: 1.3; }
 }
