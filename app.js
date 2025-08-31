@@ -236,6 +236,18 @@ function selectNode(id) {
   canvas.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
   const el = canvas.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
   if (el) el.classList.add('selected');
+
+  // --- Prepara editor modifica ---
+  const p = byId(id);
+  if (p) {
+    const editName = document.getElementById('editName');
+    const editPhoto = document.getElementById('editPhoto');
+    const editPhotoFile = document.getElementById('editPhotoFile');
+    if (editName) editName.value = p.name || "";
+    if (editPhoto) editPhoto.value = p.photo || "";
+    if (editPhotoFile) editPhotoFile.value = "";
+    refreshEditSelectors(id);
+  }
 }
 
 // ===== Drag & Drop nodi =====
@@ -374,7 +386,7 @@ document.getElementById('import').addEventListener('change', async (e)=>{
   }
 });
 
-// ===== UI =====
+// ===== UI (aggiunta) =====
 const nameInput = document.getElementById('name');
 const photoInput = document.getElementById('photo');
 const photoFileInput = document.getElementById('photoFile');
@@ -412,7 +424,75 @@ document.getElementById('add').addEventListener('click', async ()=>{
 
 document.getElementById('delete').addEventListener('click', deleteSelected);
 
-// zoom / pan controls
+// ===== Editor modifica =====
+function refreshEditSelectors(currentId) {
+  const editParentA = document.getElementById('editParentA');
+  const editParentB = document.getElementById('editParentB');
+  const editSpouseWith = document.getElementById('editSpouseWith');
+  if (!editParentA || !editParentB || !editSpouseWith) return;
+
+  const selects = [editParentA, editParentB, editSpouseWith];
+  selects.forEach(sel => {
+    sel.innerHTML = "";
+    const none = document.createElement('option');
+    none.value = ""; none.textContent = "(nessuno)";
+    sel.appendChild(none);
+    state.order.forEach(id => {
+      if (id === currentId) return; // non se stesso
+      const o = document.createElement('option');
+      o.value = id; o.textContent = byId(id).name || `ID ${id}`;
+      sel.appendChild(o);
+    });
+  });
+
+  // valorizza con i dati correnti
+  const p = byId(currentId);
+  if (!p) return;
+  editParentA.value = p.parents[0] || "";
+  editParentB.value = p.parents[1] || "";
+  const spouse = state.spouses.find(([a,b]) => a===currentId || b===currentId);
+  editSpouseWith.value = spouse ? (spouse[0]===currentId ? spouse[1] : spouse[0]) : "";
+}
+
+const applyEditBtn = document.getElementById('applyEdit');
+if (applyEditBtn) {
+  applyEditBtn.addEventListener('click', async ()=>{
+    const id = state.selected;
+    if (!id) { alert("Seleziona prima un nodo da modificare"); return; }
+    const p = byId(id);
+    if (!p) return;
+
+    const editName = document.getElementById('editName');
+    const editPhoto = document.getElementById('editPhoto');
+    const editPhotoFile = document.getElementById('editPhotoFile');
+    const editParentA = document.getElementById('editParentA');
+    const editParentB = document.getElementById('editParentB');
+    const editSpouseWith = document.getElementById('editSpouseWith');
+
+    p.name = (editName?.value || "").trim();
+    let photo = (editPhoto?.value || "").trim();
+    const file = editPhotoFile?.files?.[0] || null;
+    if (file) { photo = await fileToDataURL(file); }
+    p.photo = photo;
+
+    // genitori
+    const pa = editParentA?.value || null;
+    const pb = editParentB?.value || null;
+    p.parents = [];
+    if (pa) p.parents.push(pa);
+    if (pb && pb !== pa) p.parents.push(pb);
+
+    // coniuge
+    removeSpouseLinksOf(id);
+    const sw = editSpouseWith?.value || null;
+    if (sw) uniquePushSpouse(id, sw);
+
+    layout(); render(); refreshSelectors(); saveState();
+    alert("Dati aggiornati!");
+  });
+}
+
+// ===== Controls: zoom / fit / print =====
 document.getElementById('zoomIn').addEventListener('click', ()=>{
   const e = new WheelEvent('wheel', { deltaY: -120, bubbles: true, cancelable: true });
   viewport.dispatchEvent(e);
