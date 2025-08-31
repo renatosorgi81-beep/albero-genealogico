@@ -20,6 +20,7 @@
       <button class="iconbtn" id="zoomOut" title="Zoom -">−</button>
       <button class="iconbtn" id="reset" title="Reset vista">⟳</button>
       <button class="iconbtn" id="fit" title="Adatta alla finestra">⤢</button>
+      <button class="iconbtn" id="autoLayout" title="Auto-layout generazioni">↕︎</button>
       <button class="iconbtn" id="print" title="Stampa / PDF">🖨️</button>
       <button class="iconbtn" id="zoomIn" title="Zoom +">+</button>
     </div>
@@ -30,16 +31,20 @@
       <div class="stack">
 
         <div class="card">
-          <h2>Istruzioni</h2>
+          <h2>Legenda & Visualizzazione</h2>
           <ul class="mini-list">
-            <li class="mini-item"><span class="dot"></span>Trascina lo sfondo per muoverti, usa la rotellina per lo zoom.</li>
-            <li class="mini-item"><span class="dot"></span>Doppio click su una scheda per aprire la vista grande.</li>
-            <li class="mini-item"><span class="dot"></span>Il file <code>data.json</code> in root viene caricato se presente.</li>
+            <li class="mini-item"><span class="swatch male"></span> Bordo <b>blu</b>: Maschio</li>
+            <li class="mini-item"><span class="swatch female"></span> Bordo <b>rosa</b>: Femmina</li>
+            <li class="mini-item"><span class="legend-line"></span> Linea <b>continua</b>: Genitore → Figlio</li>
+            <li class="mini-item"><span class="legend-line spouse"></span> Linea <b>tratteggiata</b>: Coniugi</li>
+            <li class="mini-item"><span class="legend-bracket"></span> Staffa orizzontale: Gruppo fratelli</li>
           </ul>
-          <div class="legend legend-lines">
-            <div><span class="legend-line"></span> Genitore → Figlio</div>
-            <div><span class="legend-line spouse"></span> Coniugi</div>
+          <div class="toggles">
+            <label><input type="checkbox" id="toggleBands" checked> Bande generazioni</label>
+            <label><input type="checkbox" id="toggleGrid"> Griglia</label>
+            <label><input type="checkbox" id="toggleNames" checked> Mostra nomi</label>
           </div>
+          <div class="legend small">Suggerimento: usa “↕︎ Auto-layout” per riallineare generazioni, coniugi affiancati e fratelli raggruppati.</div>
         </div>
 
         <!-- Card: Aggiungi persona -->
@@ -80,7 +85,7 @@
             </div>
             <button class="primary" id="add">Aggiungi</button>
           </div>
-          <div class="legend">Compila i campi e premi “Aggiungi”. Genitori e coniuge sono opzionali.</div>
+          <div class="legend">Compila e premi “Aggiungi”. Genitori e coniuge sono opzionali.</div>
         </div>
 
         <!-- Card: Modifica selezionato -->
@@ -139,7 +144,7 @@
       </div>
     </aside>
 
-    <div class="viewport" id="viewport">
+    <div class="viewport gen-bands" id="viewport">
       <div id="canvas">
         <svg class="links" id="links" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
