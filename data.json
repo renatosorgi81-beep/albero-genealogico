@@ -7,7 +7,8 @@
       "parents": [
         "9",
         "8"
-      ]
+      ],
+      "gender": ""
     },
     "2": {
       "id": "2",
@@ -16,7 +17,8 @@
       "parents": [
         "9",
         "8"
-      ]
+      ],
+      "gender": ""
     },
     "6": {
       "id": "6",
@@ -25,7 +27,8 @@
       "parents": [
         "9",
         "8"
-      ]
+      ],
+      "gender": ""
     },
     "8": {
       "id": "8",
@@ -34,13 +37,15 @@
       "parents": [
         "10",
         "11"
-      ]
+      ],
+      "gender": ""
     },
     "9": {
       "id": "9",
       "name": "Renato Sorgi",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "10": {
       "id": "10",
@@ -49,7 +54,8 @@
       "parents": [
         "13",
         "12"
-      ]
+      ],
+      "gender": ""
     },
     "11": {
       "id": "11",
@@ -58,19 +64,22 @@
       "parents": [
         "15",
         "14"
-      ]
+      ],
+      "gender": ""
     },
     "12": {
       "id": "12",
       "name": "Giuseppina Giambelluca",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "13": {
       "id": "13",
       "name": "Luigi Ferruzza",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "14": {
       "id": "14",
@@ -79,13 +88,15 @@
       "parents": [
         "22",
         "21"
-      ]
+      ],
+      "gender": ""
     },
     "15": {
       "id": "15",
       "name": "Vincenzo La Verde",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "16": {
       "id": "16",
@@ -94,7 +105,8 @@
       "parents": [
         "15",
         "14"
-      ]
+      ],
+      "gender": ""
     },
     "17": {
       "id": "17",
@@ -103,13 +115,15 @@
       "parents": [
         "10",
         "11"
-      ]
+      ],
+      "gender": ""
     },
     "18": {
       "id": "18",
       "name": "Mimmo Infante",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "19": {
       "id": "19",
@@ -118,7 +132,8 @@
       "parents": [
         "18",
         "17"
-      ]
+      ],
+      "gender": ""
     },
     "20": {
       "id": "20",
@@ -127,7 +142,8 @@
       "parents": [
         "18",
         "17"
-      ]
+      ],
+      "gender": ""
     },
     "21": {
       "id": "21",
@@ -136,19 +152,22 @@
       "parents": [
         "31",
         "32"
-      ]
+      ],
+      "gender": ""
     },
     "22": {
       "id": "22",
       "name": "Calogero Ganci",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "23": {
       "id": "23",
       "name": "Renza",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "24": {
       "id": "24",
@@ -157,7 +176,8 @@
       "parents": [
         "16",
         "23"
-      ]
+      ],
+      "gender": ""
     },
     "25": {
       "id": "25",
@@ -166,7 +186,8 @@
       "parents": [
         "16",
         "23"
-      ]
+      ],
+      "gender": ""
     },
     "26": {
       "id": "26",
@@ -175,7 +196,8 @@
       "parents": [
         "16",
         "23"
-      ]
+      ],
+      "gender": ""
     },
     "27": {
       "id": "27",
@@ -184,7 +206,8 @@
       "parents": [
         "16",
         "23"
-      ]
+      ],
+      "gender": ""
     },
     "28": {
       "id": "28",
@@ -193,7 +216,8 @@
       "parents": [
         "31",
         "32"
-      ]
+      ],
+      "gender": ""
     },
     "29": {
       "id": "29",
@@ -202,7 +226,8 @@
       "parents": [
         "31",
         "32"
-      ]
+      ],
+      "gender": ""
     },
     "30": {
       "id": "30",
@@ -211,25 +236,29 @@
       "parents": [
         "31",
         "32"
-      ]
+      ],
+      "gender": ""
     },
     "31": {
       "id": "31",
       "name": "Papà Di Ganci",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "32": {
       "id": "32",
       "name": "Mamma Di Ganci",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "33": {
       "id": "33",
       "name": "Marito di Grazia Di Ganci",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "34": {
       "id": "34",
@@ -238,7 +267,8 @@
       "parents": [
         "33",
         "28"
-      ]
+      ],
+      "gender": ""
     },
     "35": {
       "id": "35",
@@ -247,13 +277,15 @@
       "parents": [
         "33",
         "28"
-      ]
+      ],
+      "gender": ""
     },
     "36": {
       "id": "36",
       "name": "Giovanna",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "37": {
       "id": "37",
@@ -262,7 +294,8 @@
       "parents": [
         "34",
         "36"
-      ]
+      ],
+      "gender": ""
     },
     "38": {
       "id": "38",
@@ -271,13 +304,15 @@
       "parents": [
         "34",
         "36"
-      ]
+      ],
+      "gender": ""
     },
     "39": {
       "id": "39",
       "name": "Alberto Ciriminna",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "40": {
       "id": "40",
@@ -286,7 +321,8 @@
       "parents": [
         "39",
         "37"
-      ]
+      ],
+      "gender": ""
     },
     "41": {
       "id": "41",
@@ -295,13 +331,15 @@
       "parents": [
         "39",
         "37"
-      ]
+      ],
+      "gender": ""
     },
     "42": {
       "id": "42",
       "name": "Silvia Neglia",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "43": {
       "id": "43",
@@ -310,7 +348,8 @@
       "parents": [
         "38",
         "42"
-      ]
+      ],
+      "gender": ""
     },
     "44": {
       "id": "44",
@@ -319,13 +358,15 @@
       "parents": [
         "38",
         "42"
-      ]
+      ],
+      "gender": ""
     },
     "45": {
       "id": "45",
       "name": "Bartolo La Juppa",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "46": {
       "id": "46",
@@ -334,7 +375,8 @@
       "parents": [
         "45",
         "35"
-      ]
+      ],
+      "gender": ""
     },
     "47": {
       "id": "47",
@@ -343,13 +385,15 @@
       "parents": [
         "45",
         "35"
-      ]
+      ],
+      "gender": ""
     },
     "48": {
       "id": "48",
       "name": "Mimmo Precania",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "49": {
       "id": "49",
@@ -358,7 +402,8 @@
       "parents": [
         "48",
         "46"
-      ]
+      ],
+      "gender": ""
     },
     "50": {
       "id": "50",
@@ -367,13 +412,15 @@
       "parents": [
         "48",
         "46"
-      ]
+      ],
+      "gender": ""
     },
     "51": {
       "id": "51",
       "name": "Sandra Di Peri",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "52": {
       "id": "52",
@@ -382,7 +429,8 @@
       "parents": [
         "47",
         "51"
-      ]
+      ],
+      "gender": ""
     },
     "53": {
       "id": "53",
@@ -391,19 +439,22 @@
       "parents": [
         "47",
         "51"
-      ]
+      ],
+      "gender": ""
     },
     "54": {
       "id": "54",
       "name": "Marito Damiana Di Ganci",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     },
     "55": {
       "id": "55",
       "name": "Moglie di Paolo Di Ganci",
       "photo": "",
-      "parents": []
+      "parents": [],
+      "gender": ""
     }
   },
   "spouses": [
@@ -524,8 +575,8 @@
   "nextId": 56,
   "offsets": {
     "1": {
-      "dx": -737.1060841944893,
-      "dy": 7.51498529091873
+      "dx": -624.6060841944893,
+      "dy": -169.98501470908127
     },
     "2": {
       "dx": -308.0898498704473,
@@ -540,12 +591,12 @@
       "dy": -283.0931158792031
     },
     "9": {
-      "dx": -278.8790524824073,
-      "dy": 320.14074456871685
+      "dx": -598.8790524824074,
+      "dy": 647.6407445687169
     },
     "10": {
-      "dx": -1314.3501477147952,
-      "dy": -478.9246515791431
+      "dx": -1626.8501477147952,
+      "dy": -158.92465157914307
     },
     "11": {
       "dx": -1051.9123239790842,
