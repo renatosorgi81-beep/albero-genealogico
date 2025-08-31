@@ -1,13 +1,12 @@
-
 // ===== Stato & persistenza =====
 const state = {
   people: {},           // id -> { id, name, photo, parents: [id,id?] }
-  spouses: [],          // [ [idA, idB], ... ] (ordinati per id)
-  order: [],            // rendering order (ids)
+  spouses: [],          // [ [idA, idB], ... ] (coppie ordinate)
+  order: [],            // ordine rendering (ids)
   nextId: 1,
   transform: { x: 300, y: 120, k: 1 },
   selected: null,
-  offsets: {}        // <-- AGGIUNTO: offset manuali per nodo { id: {dx,dy} }
+  offsets: {}           // id -> { dx, dy } spostamenti manuali dei nodi
 };
 
 const STORAGE_KEY = 'family_tree_v2';
@@ -17,7 +16,8 @@ function saveState() {
     people: state.people,
     spouses: state.spouses,
     order: state.order,
-    nextId: state.nextId
+    nextId: state.nextId,
+    offsets: state.offsets
   }));
 }
 
@@ -27,10 +27,11 @@ function loadState() {
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!data.people || !data.order) return false;
-    state.people = data.people;
+    state.people  = data.people;
     state.spouses = data.spouses || [];
-    state.order = data.order;
-    state.nextId = data.nextId || (Math.max(0, ...state.order.map(Number)) + 1);
+    state.order   = data.order;
+    state.nextId  = data.nextId || (Math.max(0, ...state.order.map(Number)) + 1);
+    state.offsets = data.offsets || {};
     return true;
   } catch (e) {
     console.warn('Ripristino fallito, avvio pulito', e);
@@ -91,8 +92,8 @@ async function addPerson(name, photoUrl, photoFile, parentA = null, parentB = nu
 function deleteSelected() {
   const id = state.selected;
   if (!id) { alert('Seleziona prima una persona'); return; }
-  // rimuovi dai dati
   delete state.people[id];
+  delete state.offsets[id];
   state.order = state.order.filter(x => x !== id);
   removeParentRefsTo(id);
   removeSpouseLinksOf(id);
@@ -100,7 +101,7 @@ function deleteSelected() {
   layout(); render(); refreshSelectors(); saveState();
 }
 
-// ===== Layout semplice per livelli =====
+// ===== Layout per livelli =====
 function computeDepths() {
   const indeg = {}; const depth = {}; const children = {};
   for (const id of state.order) { indeg[id] = (byId(id).parents || []).length; children[id] = []; }
@@ -115,7 +116,7 @@ function computeDepths() {
     }
   }
   for (const id of state.order) if (depth[id] == null) depth[id] = 0;
-  return { depth, children };
+  return { depth };
 }
 
 const positions = {}; // id -> {x, y}
@@ -148,6 +149,30 @@ function layout() {
   if (minX < 0) for (const id of state.order) positions[id].x -= minX;
 }
 
+// ===== Posizioni finali e bounds =====
+function getPos(id) {
+  const p = positions[id] || {x:0, y:0};
+  const o = state.offsets[id] || {dx:0, dy:0};
+  return { x: p.x + o.dx, y: p.y + o.dy };
+}
+
+function computeBounds() {
+  if (state.order.length === 0) return {minX:0, minY:0, maxX:0, maxY:0};
+  let minX = +Infinity, minY = +Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const id of state.order) {
+    const {x,y} = getPos(id);
+    const left = x + 30;
+    const top  = y + 30;
+    const right = left + 140;
+    const bottom = top + 140;
+    if (left < minX) minX = left;
+    if (top  < minY) minY = top;
+    if (right  > maxX) maxX = right;
+    if (bottom > maxY) maxY = bottom;
+  }
+  return {minX, minY, maxX, maxY};
+}
+
 // ===== Rendering =====
 const canvas = document.getElementById('canvas');
 const linksSvg = document.getElementById('links');
@@ -155,7 +180,7 @@ const linksSvg = document.getElementById('links');
 function render() {
   canvas.querySelectorAll('.node').forEach(n => n.remove());
   for (const id of state.order) {
-    const p = byId(id); const pos = positions[id] || {x:0,y:0};
+    const p = byId(id); const pos = getPos(id);
     const node = document.createElement('div');
     node.className = 'node'; node.style.left = (pos.x + 30) + 'px'; node.style.top = (pos.y + 30) + 'px';
     node.dataset.id = id;
@@ -180,10 +205,10 @@ function drawLinks() {
   linksSvg.innerHTML = '';
   // parent links
   for (const id of state.order) {
-    const child = positions[id];
+    const child = getPos(id);
     const ps = byId(id).parents || [];
     for (const pId of ps) {
-      const par = positions[pId];
+      const par = getPos(pId);
       if (!par) continue;
       const x1 = par.x + 100; const y1 = par.y + 110;
       const x2 = child.x + 100; const y2 = child.y + 20;
@@ -195,7 +220,7 @@ function drawLinks() {
   }
   // spouse links (dashed)
   for (const [a,b] of state.spouses) {
-    const pa = positions[a], pb = positions[b];
+    const pa = getPos(a), pb = getPos(b);
     if (!pa || !pb) continue;
     const x1 = pa.x + 100, y1 = pa.y + 65;
     const x2 = pb.x + 100, y2 = pb.y + 65;
@@ -213,20 +238,55 @@ function selectNode(id) {
   if (el) el.classList.add('selected');
 }
 
+// ===== Drag & Drop nodi =====
+let draggingNode = null;
+let dragStart = null;   // {mx,my, dx0,dy0}
+
+canvas.addEventListener('mousedown', (e) => {
+  const nodeEl = e.target.closest('.node');
+  if (!nodeEl) return;
+  const id = nodeEl.dataset.id;
+  draggingNode = id;
+  nodeEl.classList.add('dragging');
+  const o = state.offsets[id] || (state.offsets[id] = {dx:0, dy:0});
+  dragStart = { mx: e.clientX, my: e.clientY, dx0: o.dx, dy0: o.dy };
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!draggingNode || !dragStart) return;
+  const id = draggingNode;
+  const o = state.offsets[id] || (state.offsets[id] = {dx:0, dy:0});
+  const k = state.transform.k || 1;
+  o.dx = dragStart.dx0 + (e.clientX - dragStart.mx) / k;
+  o.dy = dragStart.dy0 + (e.clientY - dragStart.my) / k;
+  render();
+});
+
+window.addEventListener('mouseup', () => {
+  if (!draggingNode) return;
+  const el = canvas.querySelector(`.node[data-id="${CSS.escape(draggingNode)}"]`);
+  if (el) el.classList.remove('dragging');
+  draggingNode = null;
+  dragStart = null;
+  saveState();
+});
+
 // ===== Pan & Zoom =====
 const viewport = document.getElementById('viewport');
-let dragging = false; let last = {x:0,y:0};
+let panning = false; let last = {x:0,y:0};
 
 viewport.addEventListener('mousedown', (e) => {
   if (e.target.closest('.node') || e.target.closest('header') || e.target.closest('aside')) return;
-  dragging = true; last = {x:e.clientX, y:e.clientY};
+  panning = true; last = {x:e.clientX, y:e.clientY};
 });
-window.addEventListener('mouseup', ()=> dragging=false);
+window.addEventListener('mouseup', ()=> panning=false);
 window.addEventListener('mousemove', (e)=>{
-  if (!dragging) return;
+  if (!panning) return;
   const dx = e.clientX - last.x; const dy = e.clientY - last.y;
   state.transform.x += dx; state.transform.y += dy; last = {x:e.clientX, y:e.clientY};
   applyTransform();
+  saveState();
 });
 
 viewport.addEventListener('wheel', (e)=>{
@@ -241,11 +301,13 @@ viewport.addEventListener('wheel', (e)=>{
   state.transform.x = cx - x0 * k;
   state.transform.y = cy - y0 * k;
   applyTransform();
+  saveState();
 }, { passive: false });
 
 viewport.addEventListener('dblclick', ()=>{
   state.transform = { x: 300, y: 120, k: 1 };
   applyTransform();
+  saveState();
 });
 
 function applyTransform() {
@@ -254,9 +316,41 @@ function applyTransform() {
   canvas.style.transform = m;
 }
 
+// ===== Fit to view & Print =====
+function fitToView(pad = 40) {
+  const vp = document.getElementById('viewport');
+  const {minX, minY, maxX, maxY} = computeBounds();
+  const contentW = Math.max(1, maxX - minX);
+  const contentH = Math.max(1, maxY - minY);
+
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  const scale = Math.min((vw - pad*2)/contentW, (vh - pad*2)/contentH);
+  const k = Math.max(0.4, Math.min(2.2, scale));
+
+  state.transform.k = k;
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  state.transform.x = vw/2 - cx * k;
+  state.transform.y = vh/2 - cy * k;
+  applyTransform();
+  saveState();
+}
+
+function printView() {
+  const prev = {...state.transform};
+  fitToView(30);
+  const restore = () => {
+    state.transform = prev;
+    applyTransform();
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+  setTimeout(()=>window.print(), 100);
+}
+
 // ===== Export / Import =====
 document.getElementById('export').addEventListener('click', ()=>{
-  const data = { people: state.people, spouses: state.spouses, order: state.order, nextId: state.nextId };
+  const data = { people: state.people, spouses: state.spouses, order: state.order, nextId: state.nextId, offsets: state.offsets };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'albero.json'; a.click();
@@ -269,8 +363,11 @@ document.getElementById('import').addEventListener('change', async (e)=>{
   try {
     const data = JSON.parse(text);
     if (!data.people || !data.order) throw new Error('Formato non valido');
-    state.people = data.people; state.order = data.order; state.nextId = data.nextId || (Math.max(0, ...data.order.map(Number))+1);
+    state.people  = data.people;
+    state.order   = data.order;
+    state.nextId  = data.nextId || (Math.max(0, ...data.order.map(Number))+1);
     state.spouses = data.spouses || [];
+    state.offsets = data.offsets || {};
     layout(); render(); refreshSelectors(); saveState();
   } catch (err) {
     alert('Errore importazione: ' + err.message);
@@ -315,7 +412,7 @@ document.getElementById('add').addEventListener('click', async ()=>{
 
 document.getElementById('delete').addEventListener('click', deleteSelected);
 
-// zoom buttons
+// zoom / pan controls
 document.getElementById('zoomIn').addEventListener('click', ()=>{
   const e = new WheelEvent('wheel', { deltaY: -120, bubbles: true, cancelable: true });
   viewport.dispatchEvent(e);
@@ -325,8 +422,10 @@ document.getElementById('zoomOut').addEventListener('click', ()=>{
   viewport.dispatchEvent(e);
 });
 document.getElementById('reset').addEventListener('click', ()=>{
-  state.transform = { x: 300, y: 120, k: 1 }; applyTransform();
+  state.transform = { x: 300, y: 120, k: 1 }; applyTransform(); saveState();
 });
+document.getElementById('fit').addEventListener('click', ()=> fitToView(40));
+document.getElementById('print').addEventListener('click', printView);
 
 // ===== Avvio =====
 function bootstrapDemo() {
