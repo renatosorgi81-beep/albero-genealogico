@@ -6,6 +6,10 @@
   --accent: #22c55e;
   --danger: #ef4444;
   --line: #94a3b8;
+
+  /* colori sesso */
+  --male: #3b82f6;   /* blu */
+  --female: #f472b6; /* rosa */
 }
 
 html, body {
@@ -42,7 +46,7 @@ button.danger {
 main {
   height: calc(100% - 72px);
   display: grid;
-  grid-template-columns: minmax(300px, 400px) 1fr; /* sidebar flessibile */
+  grid-template-columns: minmax(300px, 420px) 1fr; /* sidebar flessibile e leggibile */
 }
 
 aside {
@@ -75,24 +79,64 @@ svg.links { position: absolute; inset: 0; overflow: visible; pointer-events: non
 
 .legend-lines .legend-line {
   width: 40px; height: 0; border-top: 2px solid var(--line);
-  display: inline-block; vertical-align: middle;
+  display: inline-block; vertical-align: middle; margin-right: 6px;
 }
 .legend-lines .legend-line.spouse  { border-top-style: dashed; }
 .legend-lines .legend-line.sibling { border-top: 1.5px dashed #c0cad9; }
 
-.node { position: absolute; width: 140px; text-align: center; cursor: grab; }
+/* ===== NODO CARD RETTANGOLARE ===== */
+.node {
+  position: absolute; width: 200px; height: 110px; text-align: left; cursor: grab;
+}
 .node.dragging { cursor: grabbing; }
 
-.avatar {
-  width: 110px; height: 110px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto; border: 3px solid var(--accent);
-  background: #e5e7eb; box-shadow: 0 10px 18px rgba(0,0,0,.06);
+.person-card {
+  height: 100%;
+  background: #fff;
+  border: 2px solid #d1d5db; /* default neutro */
+  border-radius: 12px;
+  box-shadow: 0 6px 14px rgba(0,0,0,.06);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
 }
 
-.label { font-weight: 700; margin-top: 8px; font-size: 14px; }
-.sub   { color: var(--muted); font-size: 12px; }
+/* testata sottile */
+.person-card::before {
+  content: "";
+  position: absolute;
+  margin-top: -10px;
+}
 
-.node.selected .avatar { outline: 3px solid #0ea5e9; border-color: #0ea5e9; }
+/* avatar */
+.avatar {
+  width: 44px; height: 44px; border-radius: 50%; object-fit: cover; display: block;
+  background: #e5e7eb; border: 2px solid #e5e7eb;
+}
 
+/* testi */
+.label { font-weight: 800; font-size: 14px; line-height: 1.1; margin-top: 2px; }
+.sub   { color: var(--muted); font-size: 11px; }
+
+/* badge sesso (piccolo) */
+.badge-sex {
+  display: inline-block; padding: 2px 6px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; color: #fff; margin-top: 2px;
+}
+
+/* Colori sesso: bordo + badge */
+.node.male   .person-card { border-color: var(--male); }
+.node.male   .badge-sex   { background: var(--male); }
+.node.female .person-card { border-color: var(--female); }
+.node.female .badge-sex   { background: var(--female); }
+
+/* stato selezionato */
+.node.selected .person-card { outline: 3px solid #0ea5e9; }
+
+/* tooltip/prompt */
 .legend  { font-size: 12px; color: var(--muted); }
 .pan-hint { position: absolute; bottom: 12px; left: 12px; background: rgba(255,255,255,.9); padding: 6px 10px; border-radius: 10px; border: 1px solid #e5e7eb; font-size: 12px; }
 
@@ -106,15 +150,12 @@ svg.links { position: absolute; inset: 0; overflow: visible; pointer-events: non
   header, aside, .pan-hint, .footer-bar { display: none !important; }
   .viewport { position: static; overflow: visible; background: #fff !important; }
 
-  /* Manteniamo la transform per poter adattare l'albero con il bottone "Adatta" prima di stampare */
-  /* (non mettere transform:none qui) */
+  /* Manteniamo la transform per adattare con il bottone "Adatta" prima di stampare */
 
-  /* Compatta i nodi */
-  .avatar { width: 80px; height: 80px; border-width: 2px; box-shadow: none !important; }
+  .node { width: 180px; height: 96px; }
+  .person-card { border-width: 1.5px; box-shadow: none !important; padding: 8px 10px; }
+  .avatar { width: 38px; height: 38px; border-width: 1px; }
   .label  { font-size: 12px; }
-  .sub    { display: none; }       /* nasconde ID/extra per pulizia */
-  .link   { stroke-width: 1.5; }   /* linee leggermente più sottili */
-  /* Se vuoi nascondere i coniugi in stampa, decommenta:
-     .link.spouse { display: none !important; }
-  */
+  .sub    { display: none; }   /* pulizia */
+  .link   { stroke-width: 1.3; }
 }
