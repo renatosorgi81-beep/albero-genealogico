@@ -203,7 +203,8 @@ function pathCubic(x1,y1,x2,y2) {
 
 function drawLinks() {
   linksSvg.innerHTML = '';
-  // parent links
+
+  // 1) Genitore → figlio (linea continua)
   for (const id of state.order) {
     const child = getPos(id);
     const ps = byId(id).parents || [];
@@ -218,7 +219,8 @@ function drawLinks() {
       linksSvg.appendChild(path);
     }
   }
-  // spouse links (dashed)
+
+  // 2) Coniugi (linea tratteggiata)
   for (const [a,b] of state.spouses) {
     const pa = getPos(a), pb = getPos(b);
     if (!pa || !pb) continue;
@@ -228,6 +230,31 @@ function drawLinks() {
     path.setAttribute('class','link spouse');
     path.setAttribute('d', pathCubic(x1,y1,x2,y2));
     linksSvg.appendChild(path);
+  }
+
+  // 3) Fratelli (tratto corto orizzontale tra persone con almeno un genitore in comune)
+  const siblingGroups = new Map();
+  for (const id of state.order) {
+    const ps = (byId(id).parents || []).slice().sort();
+    if (ps.length === 0) continue;
+    const key = ps.join('|');           // gruppo per combinazione genitori
+    if (!siblingGroups.has(key)) siblingGroups.set(key, []);
+    siblingGroups.get(key).push(id);
+  }
+  for (const ids of siblingGroups.values()) {
+    if (ids.length < 2) continue;
+    ids.sort((a,b)=> (getPos(a).x) - (getPos(b).x));   // ordina per X
+    for (let i=0; i<ids.length-1; i++) {
+      const a = ids[i], b = ids[i+1];
+      const pa = getPos(a), pb = getPos(b);
+      if (!pa || !pb) continue;
+      const x1 = pa.x + 100, y = pa.y + 65;
+      const x2 = pb.x + 100;
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('class','link sibling');
+      path.setAttribute('d', `M ${x1} ${y} L ${x2} ${y}`);
+      linksSvg.appendChild(path);
+    }
   }
 }
 
