@@ -7,6 +7,7 @@ const state = {
   nextId: 1,
   transform: { x: 300, y: 120, k: 1 },
   selected: null,
+  offsets: {}        // <-- AGGIUNTO: offset manuali per nodo { id: {dx,dy} }
 };
 
 const STORAGE_KEY = 'family_tree_v2';
