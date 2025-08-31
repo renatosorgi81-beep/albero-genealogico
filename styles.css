@@ -80,6 +80,17 @@ svg.links { position: absolute; inset: 0; overflow: visible; pointer-events: non
 .link { stroke: var(--line); stroke-width: 2; fill: none; }
 .link.spouse { stroke-dasharray: 6 4; }
 
+/* -------- Linea fratelli + legenda -------- */
+.link.sibling { stroke: #c0cad9; stroke-dasharray: 3 6; stroke-width: 1.5; opacity: .9; }
+
+.legend-lines .legend-line {
+  width: 40px; height: 0; border-top: 2px solid var(--line);
+  display: inline-block; vertical-align: middle;
+}
+.legend-lines .legend-line.spouse { border-top-style: dashed; }
+.legend-lines .legend-line.sibling { border-top: 1.5px dashed #c0cad9; }
+/* ------------------------------------------ */
+
 .node {
   position: absolute; width: 140px; text-align: center; cursor: grab;
 }
