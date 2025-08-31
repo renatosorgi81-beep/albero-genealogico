@@ -2,7 +2,7 @@
 const state = {
   people: {},           // id -> { id, name, photo, parents: [id,id?], gender: 'M'|'F'|'' }
   spouses: [],          // [ [idA, idB], ... ]
-  order: [],            // ordine rendering (ids)
+  order: [],            // ids
   nextId: 1,
   transform: { x: 300, y: 120, k: 1 },
   selected: null,
@@ -11,8 +11,8 @@ const state = {
 
 const STORAGE_KEY = 'family_tree_v2';
 
-// dimensioni card (usate per linee/bounds)
-const CARD = { width: 200, height: 110, margin: 30 };
+// dimensioni card / margini
+const CARD = { width: 220, height: 110, margin: 30 };
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -37,8 +37,7 @@ function loadState() {
     state.nextId  = data.nextId || (Math.max(0, ...state.order.map(Number)) + 1);
     state.offsets = data.offsets || {};
     return true;
-  } catch (e) {
-    console.warn('Ripristino fallito, avvio pulito', e);
+  } catch {
     return false;
   }
 }
@@ -46,12 +45,8 @@ function loadState() {
 // ===== Helpers =====
 const byId = id => state.people[id];
 const normPair = (a,b) => [String(a), String(b)].sort();
-
 function spouseOf(id) {
-  for (const [a,b] of state.spouses) {
-    if (a === id) return b;
-    if (b === id) return a;
-  }
+  for (const [a,b] of state.spouses) { if (a===id) return b; if (b===id) return a; }
   return null;
 }
 function uniquePushSpouse(a, b) {
@@ -81,9 +76,7 @@ function fileToDataURL(file) {
 async function addPerson(name, photoUrl, photoFile, parentA = null, parentB = null, spouseWith = null, gender = '') {
   const id = String(state.nextId++);
   let photo = (photoUrl || '').trim();
-  if (photoFile) {
-    try { photo = await fileToDataURL(photoFile); } catch {}
-  }
+  if (photoFile) { try { photo = await fileToDataURL(photoFile); } catch {} }
   state.people[id] = { id, name: name.trim(), photo, parents: [], gender: (gender || '').toUpperCase() };
   if (parentA) state.people[id].parents.push(parentA);
   if (parentB && parentB !== parentA) state.people[id].parents.push(parentB);
@@ -105,11 +98,11 @@ function deleteSelected() {
   layout(); render(); refreshSelectors(); saveState();
 }
 
-// ===== Layout "albero classico": generazioni per riga, coniugi affiancati =====
+// ===== Layout per generazioni, coniugi affiancati =====
 const positions = {}; // id -> {x, y}
 
 function layout() {
-  // 1) depth (generazione)
+  // Depth (BFS)
   const indeg = {}; const depth = {}; const children = {};
   for (const id of state.order) { indeg[id] = (byId(id).parents || []).length; children[id] = []; }
   for (const id of state.order) { for (const p of byId(id).parents) { if (children[p]) children[p].push(id); } }
@@ -124,7 +117,7 @@ function layout() {
   }
   for (const id of state.order) if (depth[id] == null) depth[id] = 0;
 
-  // 2) per livello
+  // per livello
   const byLevel = {};
   for (const id of state.order) {
     const d = depth[id];
@@ -133,14 +126,15 @@ function layout() {
   }
 
   const levelGap = 200;
-  const coupleGap = 40;
-  const slotGap   = 240; // più spazioso coi card
+  const coupleGap = 46;
+  const slotGap   = 260;
 
   const occupied = new Set();
   const levelUnits = {};
 
   for (const [lvl, arr] of Object.entries(byLevel)) {
     const units = [];
+    // prima le coppie
     for (const id of arr) {
       if (occupied.has(id)) continue;
       const s = spouseOf(id);
@@ -149,6 +143,7 @@ function layout() {
         occupied.add(id); occupied.add(s);
       }
     }
+    // poi i singoli
     for (const id of arr) {
       if (occupied.has(id)) continue;
       units.push({ type:'single', id });
@@ -156,6 +151,7 @@ function layout() {
     levelUnits[lvl] = units;
   }
 
+  // posizionamento
   for (const [lvl, units] of Object.entries(levelUnits)) {
     units.forEach((u, i) => {
       const baseX = i * slotGap;
@@ -169,7 +165,7 @@ function layout() {
     });
   }
 
-  // centra i figli sotto i genitori
+  // centra i figli sotto i genitori (media posizioni)
   for (const id of state.order) {
     const ps = byId(id).parents || [];
     if (!ps.length) continue;
@@ -180,7 +176,7 @@ function layout() {
     }
   }
 
-  // normalizza x >= 0
+  // normalizza x
   const xs = Object.values(positions).map(p=>p.x);
   const minX = Math.min(...xs, 0);
   if (minX < 0) for (const id of state.order) positions[id].x -= minX;
@@ -243,17 +239,13 @@ function render() {
     node.addEventListener('click', () => selectNode(id));
     canvas.appendChild(node);
   }
+
   drawLinks();
   applyTransform();
 }
 
-function pathCubic(x1,y1,x2,y2) {
-  const dx = (x2 - x1) * 0.5;
-  return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
-}
-
+// ancoraggi card
 function anchors(id) {
-  // punti di ancoraggio del nodo (center/top/mid/bottom)
   const {x,y} = getPos(id);
   const left = x + CARD.margin;
   const top  = y + CARD.margin;
@@ -264,352 +256,30 @@ function anchors(id) {
   return { cx, yTop, yMid, yBot };
 }
 
+// path ortogonale (L-shape): dalla (x1,y1) alla (x2,y2)
+function pathOrtho(x1,y1,x2,y2) {
+  const mx = x1;               // scendo dritto dal punto 1
+  const my = y2;               // poi vado orizzontale fino a x2
+  return `M ${x1} ${y1} L ${mx} ${my} L ${x2} ${y2}`;
+}
+
 function drawLinks() {
   linksSvg.innerHTML = '';
 
-  // Genitore → figlio
-  for (const id of state.order) {
-    const ps = byId(id).parents || [];
-    const aChild = anchors(id);
-    for (const pId of ps) {
-      const aPar = anchors(pId);
-      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-      path.setAttribute('class','link');
-      path.setAttribute('d', pathCubic(aPar.cx, aPar.yBot, aChild.cx, aChild.yTop));
-      linksSvg.appendChild(path);
-    }
-  }
-
-  // Coniugi (tratteggiata)
+  // mappa giunti coppia (key = "a|b")
+  const joint = new Map();
   for (const [a,b] of state.spouses) {
     const pa = anchors(a), pb = anchors(b);
-    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('class','link spouse');
-    path.setAttribute('d', pathCubic(pa.cx, pa.yMid, pb.cx, pb.yMid));
-    linksSvg.appendChild(path);
+    const x = (pa.cx + pb.cx) / 2;
+    const y = pa.yMid; // stessa riga dei coniugi
+    joint.set(normPair(a,b).join('|'), {x, y});
+    // linea coniugi (orizzontale)
+    const pathS = document.createElementNS('http://www.w3.org/2000/svg','path');
+    pathS.setAttribute('class','link spouse');
+    pathS.setAttribute('d', `M ${pa.cx} ${pa.yMid} L ${pb.cx} ${pb.yMid}`);
+    linksSvg.appendChild(pathS);
   }
 
-  // Fratelli (orizzontale fine)
-  const siblingGroups = new Map();
+  // Figli: se hanno due genitori che sono coniugi, scendono dal giunto
   for (const id of state.order) {
-    const ps = (byId(id).parents || []).slice().sort();
-    if (ps.length === 0) continue;
-    const key = ps.join('|');
-    if (!siblingGroups.has(key)) siblingGroups.set(key, []);
-    siblingGroups.get(key).push(id);
-  }
-  for (const ids of siblingGroups.values()) {
-    if (ids.length < 2) continue;
-    ids.sort((a,b)=> anchors(a).cx - anchors(b).cx);
-    for (let i=0; i<ids.length-1; i++) {
-      const ra = anchors(ids[i]), rb = anchors(ids[i+1]);
-      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-      path.setAttribute('class','link sibling');
-      path.setAttribute('d', `M ${ra.cx} ${ra.yMid} L ${rb.cx} ${rb.yMid}`);
-      linksSvg.appendChild(path);
-    }
-  }
-}
-
-function selectNode(id) {
-  state.selected = id;
-  canvas.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
-  const el = canvas.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
-  if (el) el.classList.add('selected');
-
-  const p = byId(id);
-  if (p) {
-    const editName = document.getElementById('editName');
-    const editPhoto = document.getElementById('editPhoto');
-    const editPhotoFile = document.getElementById('editPhotoFile');
-    const editGender = document.getElementById('editGender');
-    if (editName) editName.value = p.name || "";
-    if (editPhoto) editPhoto.value = p.photo || "";
-    if (editPhotoFile) editPhotoFile.value = "";
-    if (editGender) editGender.value = p.gender || "";
-    refreshEditSelectors(id);
-  }
-}
-
-// ===== Drag & Drop nodi =====
-let draggingNode = null;
-let dragStart = null;   // {mx,my, dx0,dy0}
-
-canvas.addEventListener('mousedown', (e) => {
-  const nodeEl = e.target.closest('.node');
-  if (!nodeEl) return;
-  const id = nodeEl.dataset.id;
-  draggingNode = id;
-  nodeEl.classList.add('dragging');
-  const o = state.offsets[id] || (state.offsets[id] = {dx:0, dy:0});
-  dragStart = { mx: e.clientX, my: e.clientY, dx0: o.dx, dy0: o.dy };
-  e.preventDefault();
-});
-
-window.addEventListener('mousemove', (e) => {
-  if (!draggingNode || !dragStart) return;
-  const o = state.offsets[draggingNode] || (state.offsets[draggingNode] = {dx:0, dy:0});
-  const k = state.transform.k || 1;
-  o.dx = dragStart.dx0 + (e.clientX - dragStart.mx) / k;
-  o.dy = dragStart.dy0 + (e.clientY - dragStart.my) / k;
-  render();
-});
-
-window.addEventListener('mouseup', () => {
-  if (!draggingNode) return;
-  const el = canvas.querySelector(`.node[data-id="${CSS.escape(draggingNode)}"]`);
-  if (el) el.classList.remove('dragging');
-  draggingNode = null; dragStart = null; saveState();
-});
-
-// ===== Pan & Zoom =====
-const viewport = document.getElementById('viewport');
-let panning = false; let last = {x:0,y:0};
-
-viewport.addEventListener('mousedown', (e) => {
-  if (e.target.closest('.node') || e.target.closest('header') || e.target.closest('aside')) return;
-  panning = true; last = {x:e.clientX, y:e.clientY};
-});
-window.addEventListener('mouseup', ()=> panning=false);
-window.addEventListener('mousemove', (e)=>{
-  if (!panning) return;
-  const dx = e.clientX - last.x; const dy = e.clientY - last.y;
-  state.transform.x += dx; state.transform.y += dy; last = {x:e.clientX, y:e.clientY};
-  applyTransform(); saveState();
-});
-
-viewport.addEventListener('wheel', (e)=>{
-  e.preventDefault();
-  const delta = Math.sign(e.deltaY) * 0.1;
-  const k0 = state.transform.k;
-  let k = Math.min(2.2, Math.max(0.4, k0 * (1 - delta)));
-  const rect = viewport.getBoundingClientRect();
-  const cx = e.clientX - rect.left; const cy = e.clientY - rect.top;
-  const x0 = (cx - state.transform.x) / k0; const y0 = (cy - state.transform.y) / k0;
-  state.transform.k = k;
-  state.transform.x = cx - x0 * k;
-  state.transform.y = cy - y0 * k;
-  applyTransform(); saveState();
-}, { passive: false });
-
-viewport.addEventListener('dblclick', ()=>{
-  state.transform = { x: 300, y: 120, k: 1 };
-  applyTransform(); saveState();
-});
-
-function applyTransform() {
-  const t = state.transform;
-  canvas.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.k})`;
-}
-
-// ===== Fit to view & Print =====
-function fitToView(pad = 40) {
-  const vp = document.getElementById('viewport');
-  const {minX, minY, maxX, maxY} = computeBounds();
-  const contentW = Math.max(1, maxX - minX);
-  const contentH = Math.max(1, maxY - minY);
-
-  const vw = vp.clientWidth, vh = vp.clientHeight;
-  const scale = Math.min((vw - pad*2)/contentW, (vh - pad*2)/contentH);
-  const k = Math.max(0.4, Math.min(2.2, scale));
-
-  state.transform.k = k;
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
-  state.transform.x = vw/2 - cx * k;
-  state.transform.y = vh/2 - cy * k;
-  applyTransform(); saveState();
-}
-
-function printView() {
-  const prev = {...state.transform};
-  fitToView(30);
-  const restore = () => {
-    state.transform = prev;
-    applyTransform();
-    window.removeEventListener('afterprint', restore);
-  };
-  window.addEventListener('afterprint', restore);
-  setTimeout(()=>window.print(), 100);
-}
-
-// ===== Export / Import =====
-document.getElementById('export').addEventListener('click', ()=>{
-  const data = { people: state.people, spouses: state.spouses, order: state.order, nextId: state.nextId, offsets: state.offsets };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'albero.json'; a.click();
-  setTimeout(()=>URL.revokeObjectURL(url), 1000);
-});
-
-document.getElementById('import').addEventListener('change', async (e)=>{
-  const file = e.target.files?.[0]; if (!file) return;
-  const text = await file.text();
-  try {
-    const data = JSON.parse(text);
-    if (!data.people || !data.order) throw new Error('Formato non valido');
-    Object.values(data.people).forEach(p => { if (p.gender == null) p.gender = ''; });
-    state.people  = data.people;
-    state.order   = data.order;
-    state.nextId  = data.nextId || (Math.max(0, ...data.order.map(Number))+1);
-    state.spouses = data.spouses || [];
-    state.offsets = data.offsets || {};
-    layout(); render(); refreshSelectors(); saveState();
-  } catch (err) {
-    alert('Errore importazione: ' + err.message);
-  }
-});
-
-// ===== UI (aggiunta) =====
-const nameInput = document.getElementById('name');
-const photoInput = document.getElementById('photo');
-const photoFileInput = document.getElementById('photoFile');
-const parentA = document.getElementById('parentA');
-const parentB = document.getElementById('parentB');
-const spouseWith = document.getElementById('spouseWith');
-const genderSelect = document.getElementById('gender');
-
-function refreshSelectors() {
-  const options = ["", ...state.order];
-  for (const sel of [parentA, parentB, spouseWith]) {
-    if (!sel) continue;
-    const cur = sel.value;
-    sel.innerHTML = "";
-    const none = document.createElement('option'); none.value = ""; none.textContent = "(nessuno)"; sel.appendChild(none);
-    options.slice(1).forEach(id => {
-      const o = document.createElement('option');
-      o.value = id; o.textContent = byId(id).name || `ID ${id}`;
-      sel.appendChild(o);
-    });
-    sel.value = options.includes(cur) ? cur : "";
-  }
-}
-
-document.getElementById('add').addEventListener('click', async ()=>{
-  const name = nameInput.value.trim();
-  if (!name) { alert('Inserisci almeno il nome completo'); return; }
-  const pa = parentA?.value || null;
-  const pb = parentB?.value || null;
-  const sw = spouseWith?.value || null;
-  const gender = (genderSelect?.value || '').toUpperCase();
-  const file = photoFileInput.files?.[0] || null;
-  const id = await addPerson(name, photoInput.value.trim(), file, pa, pb, sw, gender);
-  nameInput.value = ''; photoInput.value = ''; if (photoFileInput.value) photoFileInput.value = '';
-  if (parentA) parentA.value = ''; if (parentB) parentB.value = '';
-  if (spouseWith) spouseWith.value = ''; if (genderSelect) genderSelect.value = '';
-  selectNode(id);
-});
-
-document.getElementById('delete').addEventListener('click', deleteSelected);
-
-// ===== Editor modifica =====
-function refreshEditSelectors(currentId) {
-  const editParentA = document.getElementById('editParentA');
-  const editParentB = document.getElementById('editParentB');
-  const editSpouseWith = document.getElementById('editSpouseWith');
-  if (!editParentA || !editParentB || !editSpouseWith) return;
-
-  const selects = [editParentA, editParentB, editSpouseWith];
-  selects.forEach(sel => {
-    sel.innerHTML = "";
-    const none = document.createElement('option');
-    none.value = ""; none.textContent = "(nessuno)";
-    sel.appendChild(none);
-    state.order.forEach(id => {
-      if (id === currentId) return; // non se stesso
-      const o = document.createElement('option');
-      o.value = id; o.textContent = byId(id).name || `ID ${id}`;
-      sel.appendChild(o);
-    });
-  });
-
-  // set valori correnti
-  const p = byId(currentId);
-  if (!p) return;
-  editParentA.value = p.parents[0] || "";
-  editParentB.value = p.parents[1] || "";
-  const spouse = state.spouses.find(([a,b]) => a===currentId || b===currentId);
-  editSpouseWith.value = spouse ? (spouse[0]===currentId ? spouse[1] : spouse[0]) : "";
-}
-
-const applyEditBtn = document.getElementById('applyEdit');
-if (applyEditBtn) {
-  applyEditBtn.addEventListener('click', async ()=>{
-    const id = state.selected;
-    if (!id) { alert("Seleziona prima un nodo da modificare"); return; }
-    const p = byId(id);
-    if (!p) return;
-
-    const editName = document.getElementById('editName');
-    const editPhoto = document.getElementById('editPhoto');
-    const editPhotoFile = document.getElementById('editPhotoFile');
-    const editParentA = document.getElementById('editParentA');
-    const editParentB = document.getElementById('editParentB');
-    const editSpouseWith = document.getElementById('editSpouseWith');
-    const editGender = document.getElementById('editGender');
-
-    p.name = (editName?.value || "").trim();
-    let photo = (editPhoto?.value || "").trim();
-    const file = editPhotoFile?.files?.[0] || null;
-    if (file) { photo = await fileToDataURL(file); }
-    p.photo = photo;
-
-    // genitori
-    const pa = editParentA?.value || null;
-    const pb = editParentB?.value || null;
-    p.parents = [];
-    if (pa) p.parents.push(pa);
-    if (pb && pb !== pa) p.parents.push(pb);
-
-    // sesso
-    p.gender = (editGender?.value || '').toUpperCase();
-
-    // coniuge
-    removeSpouseLinksOf(id);
-    const sw = editSpouseWith?.value || null;
-    if (sw) uniquePushSpouse(id, sw);
-
-    layout(); render(); refreshSelectors(); saveState();
-    alert("Dati aggiornati!");
-  });
-}
-
-// ===== Controls: zoom / fit / print =====
-document.getElementById('zoomIn').addEventListener('click', ()=>{
-  const e = new WheelEvent('wheel', { deltaY: -120, bubbles: true, cancelable: true });
-  viewport.dispatchEvent(e);
-});
-document.getElementById('zoomOut').addEventListener('click', ()=>{
-  const e = new WheelEvent('wheel', { deltaY: 120, bubbles: true, cancelable: true });
-  viewport.dispatchEvent(e);
-});
-document.getElementById('reset').addEventListener('click', ()=>{
-  state.transform = { x: 300, y: 120, k: 1 }; applyTransform(); saveState();
-});
-document.getElementById('fit').addEventListener('click', ()=> fitToView(40));
-document.getElementById('print').addEventListener('click', printView);
-
-// ===== Avvio =====
-function bootstrapDemo() {
-  const idNonno = String(state.nextId++);
-  const idNonna = String(state.nextId++);
-  const idPadre = String(state.nextId++);
-  const idMadre = String(state.nextId++);
-  const idTu    = String(state.nextId++);
-
-  state.people[idNonno] = { id:idNonno, name:'Giuseppe (nonno)', gender:'M', photo:'https://images.unsplash.com/photo-1602471060926-5f1e1c3f1b8a?q=80&w=300', parents:[] };
-  state.people[idNonna] = { id:idNonna, name:'Anna (nonna)',     gender:'F', photo:'https://images.unsplash.com/photo-1551836022-4c4c79ecde51?q=80&w=300', parents:[] };
-  state.people[idPadre] = { id:idPadre, name:'Marco (padre)',    gender:'M', photo:'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=300', parents:[idNonno, idNonna] };
-  state.people[idMadre] = { id:idMadre, name:'Lucia (madre)',    gender:'F', photo:'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=300', parents:[] };
-  state.people[idTu]    = { id:idTu,    name:'Renato (tu)',      gender:'M', photo:'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=300', parents:[idPadre, idMadre] };
-  state.order.push(idNonno,idNonna,idPadre,idMadre,idTu);
-  uniquePushSpouse(idNonno, idNonna);
-  uniquePushSpouse(idPadre, idMadre);
-}
-
-(function init(){
-  const ok = loadState();
-  if (!ok) bootstrapDemo();
-  layout(); render(); refreshSelectors();
-  saveState();
-})();
+    const ps =
