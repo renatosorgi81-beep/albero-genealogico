@@ -1,15 +1,18 @@
 // ===== Stato & persistenza =====
 const state = {
-  people: {},           // id -> { id, name, photo, parents: [id,id?] }
-  spouses: [],          // [ [idA, idB], ... ] (coppie ordinate)
+  people: {},           // id -> { id, name, photo, parents: [id,id?], gender: 'M'|'F'|'' }
+  spouses: [],          // [ [idA, idB], ... ]
   order: [],            // ordine rendering (ids)
   nextId: 1,
   transform: { x: 300, y: 120, k: 1 },
   selected: null,
-  offsets: {}           // id -> { dx, dy } spostamenti manuali dei nodi
+  offsets: {}           // id -> { dx, dy }
 };
 
 const STORAGE_KEY = 'family_tree_v2';
+
+// dimensioni card (usate per linee/bounds)
+const CARD = { width: 200, height: 110, margin: 30 };
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -27,10 +30,11 @@ function loadState() {
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!data.people || !data.order) return false;
+    Object.values(data.people).forEach(p => { if (p.gender == null) p.gender = ''; });
     state.people  = data.people;
     state.spouses = data.spouses || [];
     state.order   = data.order;
-    state.nextId  = data.nextId || (Math.max(0, ...data.order.map(Number)) + 1);
+    state.nextId  = data.nextId || (Math.max(0, ...state.order.map(Number)) + 1);
     state.offsets = data.offsets || {};
     return true;
   } catch (e) {
@@ -43,7 +47,6 @@ function loadState() {
 const byId = id => state.people[id];
 const normPair = (a,b) => [String(a), String(b)].sort();
 
-// ritorna l'ID del coniuge (se esiste), altrimenti null
 function spouseOf(id) {
   for (const [a,b] of state.spouses) {
     if (a === id) return b;
@@ -51,21 +54,12 @@ function spouseOf(id) {
   }
   return null;
 }
-function coupleKey(a, b) {
-  if (!a || !b) return null;
-  return [String(a), String(b)].sort().join('|');
-}
-
 function uniquePushSpouse(a, b) {
   const [x,y] = normPair(a,b);
   if (x === y) return;
   if (!state.spouses.find(([i,j]) => i===x && j===y)) state.spouses.push([x,y]);
 }
-
-function removeSpouseLinksOf(id) {
-  state.spouses = state.spouses.filter(([a,b]) => a!==id && b!==id);
-}
-
+function removeSpouseLinksOf(id) { state.spouses = state.spouses.filter(([a,b]) => a!==id && b!==id); }
 function removeParentRefsTo(id) {
   for (const pid of state.order) {
     const ps = byId(pid).parents || [];
@@ -73,7 +67,7 @@ function removeParentRefsTo(id) {
   }
 }
 
-// File -> dataURL
+// file -> dataURL
 function fileToDataURL(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -84,21 +78,18 @@ function fileToDataURL(file) {
 }
 
 // ===== Operazioni =====
-async function addPerson(name, photoUrl, photoFile, parentA = null, parentB = null, spouseWith = null) {
+async function addPerson(name, photoUrl, photoFile, parentA = null, parentB = null, spouseWith = null, gender = '') {
   const id = String(state.nextId++);
   let photo = (photoUrl || '').trim();
   if (photoFile) {
     try { photo = await fileToDataURL(photoFile); } catch {}
   }
-  state.people[id] = { id, name: name.trim(), photo, parents: [] };
+  state.people[id] = { id, name: name.trim(), photo, parents: [], gender: (gender || '').toUpperCase() };
   if (parentA) state.people[id].parents.push(parentA);
   if (parentB && parentB !== parentA) state.people[id].parents.push(parentB);
   state.order.push(id);
   if (spouseWith) uniquePushSpouse(id, spouseWith);
-  layout();
-  render();
-  refreshSelectors();
-  saveState();
+  layout(); render(); refreshSelectors(); saveState();
   return id;
 }
 
@@ -118,7 +109,7 @@ function deleteSelected() {
 const positions = {}; // id -> {x, y}
 
 function layout() {
-  // 1) Calcola profondità (generazione) dai nodi radice (senza genitori)
+  // 1) depth (generazione)
   const indeg = {}; const depth = {}; const children = {};
   for (const id of state.order) { indeg[id] = (byId(id).parents || []).length; children[id] = []; }
   for (const id of state.order) { for (const p of byId(id).parents) { if (children[p]) children[p].push(id); } }
@@ -133,7 +124,7 @@ function layout() {
   }
   for (const id of state.order) if (depth[id] == null) depth[id] = 0;
 
-  // 2) Raggruppa per livello (generazione)
+  // 2) per livello
   const byLevel = {};
   for (const id of state.order) {
     const d = depth[id];
@@ -141,37 +132,30 @@ function layout() {
     byLevel[d].push(id);
   }
 
-  // 3) Dentro ogni livello: metti le coppie vicine e poi i singoli
-  const levelGap = 200;    // distanza verticale tra generazioni
-  const coupleGap = 40;    // distanza tra coniugi della stessa coppia
-  const slotGap   = 220;   // distanza tra "unità" (coppia o singolo)
+  const levelGap = 200;
+  const coupleGap = 40;
+  const slotGap   = 240; // più spazioso coi card
 
-  const occupiedCouple = new Set();
-  const levelUnits = {}; // livello -> array di unità { type:'couple', a,b } | { type:'single', id }
+  const occupied = new Set();
+  const levelUnits = {};
 
   for (const [lvl, arr] of Object.entries(byLevel)) {
     const units = [];
-
-    // Prima le coppie se entrambi nel livello
     for (const id of arr) {
-      if (occupiedCouple.has(id)) continue;
+      if (occupied.has(id)) continue;
       const s = spouseOf(id);
-      if (s && byLevel[lvl].includes(s)) {
-        if (!occupiedCouple.has(id) && !occupiedCouple.has(s)) {
-          units.push({ type: 'couple', a: id, b: s });
-          occupiedCouple.add(id); occupiedCouple.add(s);
-        }
+      if (s && byLevel[lvl].includes(s) && !occupied.has(s)) {
+        units.push({ type:'couple', a:id, b:s });
+        occupied.add(id); occupied.add(s);
       }
     }
-    // Poi i singoli rimasti
     for (const id of arr) {
-      if (occupiedCouple.has(id)) continue;
-      units.push({ type: 'single', id });
+      if (occupied.has(id)) continue;
+      units.push({ type:'single', id });
     }
     levelUnits[lvl] = units;
   }
 
-  // 4) Posiziona le unità del livello in orizzontale
   for (const [lvl, units] of Object.entries(levelUnits)) {
     units.forEach((u, i) => {
       const baseX = i * slotGap;
@@ -185,7 +169,7 @@ function layout() {
     });
   }
 
-  // 5) Centra i figli sotto la media dei genitori (o sotto il genitore singolo)
+  // centra i figli sotto i genitori
   for (const id of state.order) {
     const ps = byId(id).parents || [];
     if (!ps.length) continue;
@@ -196,7 +180,7 @@ function layout() {
     }
   }
 
-  // 6) Normalizza per evitare x negative
+  // normalizza x >= 0
   const xs = Object.values(positions).map(p=>p.x);
   const minX = Math.min(...xs, 0);
   if (minX < 0) for (const id of state.order) positions[id].x -= minX;
@@ -214,10 +198,10 @@ function computeBounds() {
   let minX = +Infinity, minY = +Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const id of state.order) {
     const {x,y} = getPos(id);
-    const left = x + 30;
-    const top  = y + 30;
-    const right = left + 140;
-    const bottom = top + 140;
+    const left = x + CARD.margin;
+    const top  = y + CARD.margin;
+    const right = left + CARD.width;
+    const bottom = top + CARD.height;
     if (left < minX) minX = left;
     if (top  < minY) minY = top;
     if (right  > maxX) maxX = right;
@@ -232,16 +216,30 @@ const linksSvg = document.getElementById('links');
 
 function render() {
   canvas.querySelectorAll('.node').forEach(n => n.remove());
+
   for (const id of state.order) {
     const p = byId(id); const pos = getPos(id);
+    const left = pos.x + CARD.margin;
+    const top  = pos.y + CARD.margin;
+
+    const sexClass = p.gender === 'M' ? 'male' : (p.gender === 'F' ? 'female' : '');
     const node = document.createElement('div');
-    node.className = 'node'; node.style.left = (pos.x + 30) + 'px'; node.style.top = (pos.y + 30) + 'px';
+    node.className = `node ${sexClass}`;
+    node.style.left = left + 'px';
+    node.style.top  = top  + 'px';
     node.dataset.id = id;
+
+    const badge = p.gender ? `<div class="badge-sex">${p.gender}</div>` : '';
+
     node.innerHTML = `
-      <img class="avatar" src="${p.photo || 'https://via.placeholder.com/200?text=Foto'}" alt="${p.name}">
-      <div class="label">${p.name || 'Senza nome'}</div>
-      <div class="sub">ID ${id}${(p.parents?.length?` • gen: ${p.parents.join(', ')}`:'')}</div>
+      <div class="person-card">
+        <img class="avatar" src="${p.photo || 'https://via.placeholder.com/120?text=Foto'}" alt="${p.name}">
+        <div class="label">${p.name || 'Senza nome'}</div>
+        <div class="sub">ID ${id}${(p.parents?.length?` • gen: ${p.parents.join(', ')}`:'')}</div>
+        ${badge}
+      </div>
     `;
+
     node.addEventListener('click', () => selectNode(id));
     canvas.appendChild(node);
   }
@@ -254,58 +252,60 @@ function pathCubic(x1,y1,x2,y2) {
   return `M ${x1} ${y1} C ${x1+dx} ${y1}, ${x2-dx} ${y2}, ${x2} ${y2}`;
 }
 
+function anchors(id) {
+  // punti di ancoraggio del nodo (center/top/mid/bottom)
+  const {x,y} = getPos(id);
+  const left = x + CARD.margin;
+  const top  = y + CARD.margin;
+  const cx = left + CARD.width/2;
+  const yTop = top;
+  const yMid = top + CARD.height/2;
+  const yBot = top + CARD.height;
+  return { cx, yTop, yMid, yBot };
+}
+
 function drawLinks() {
   linksSvg.innerHTML = '';
 
-  // 1) Genitore → figlio (linea continua)
+  // Genitore → figlio
   for (const id of state.order) {
-    const child = getPos(id);
     const ps = byId(id).parents || [];
+    const aChild = anchors(id);
     for (const pId of ps) {
-      const par = getPos(pId);
-      if (!par) continue;
-      const x1 = par.x + 100; const y1 = par.y + 110;
-      const x2 = child.x + 100; const y2 = child.y + 20;
+      const aPar = anchors(pId);
       const path = document.createElementNS('http://www.w3.org/2000/svg','path');
       path.setAttribute('class','link');
-      path.setAttribute('d', pathCubic(x1,y1,x2,y2));
+      path.setAttribute('d', pathCubic(aPar.cx, aPar.yBot, aChild.cx, aChild.yTop));
       linksSvg.appendChild(path);
     }
   }
 
-  // 2) Coniugi (linea tratteggiata)
+  // Coniugi (tratteggiata)
   for (const [a,b] of state.spouses) {
-    const pa = getPos(a), pb = getPos(b);
-    if (!pa || !pb) continue;
-    const x1 = pa.x + 100, y1 = pa.y + 65;
-    const x2 = pb.x + 100, y2 = pb.y + 65;
+    const pa = anchors(a), pb = anchors(b);
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('class','link spouse');
-    path.setAttribute('d', pathCubic(x1,y1,x2,y2));
+    path.setAttribute('d', pathCubic(pa.cx, pa.yMid, pb.cx, pb.yMid));
     linksSvg.appendChild(path);
   }
 
-  // 3) Fratelli (tratto corto orizzontale tra persone con almeno un genitore in comune)
+  // Fratelli (orizzontale fine)
   const siblingGroups = new Map();
   for (const id of state.order) {
     const ps = (byId(id).parents || []).slice().sort();
     if (ps.length === 0) continue;
-    const key = ps.join('|');           // gruppo per combinazione genitori
+    const key = ps.join('|');
     if (!siblingGroups.has(key)) siblingGroups.set(key, []);
     siblingGroups.get(key).push(id);
   }
   for (const ids of siblingGroups.values()) {
     if (ids.length < 2) continue;
-    ids.sort((a,b)=> (getPos(a).x) - (getPos(b).x));   // ordina per X
+    ids.sort((a,b)=> anchors(a).cx - anchors(b).cx);
     for (let i=0; i<ids.length-1; i++) {
-      const a = ids[i], b = ids[i+1];
-      const pa = getPos(a), pb = getPos(b);
-      if (!pa || !pb) continue;
-      const x1 = pa.x + 100, y = pa.y + 65;
-      const x2 = pb.x + 100;
+      const ra = anchors(ids[i]), rb = anchors(ids[i+1]);
       const path = document.createElementNS('http://www.w3.org/2000/svg','path');
       path.setAttribute('class','link sibling');
-      path.setAttribute('d', `M ${x1} ${y} L ${x2} ${y}`);
+      path.setAttribute('d', `M ${ra.cx} ${ra.yMid} L ${rb.cx} ${rb.yMid}`);
       linksSvg.appendChild(path);
     }
   }
@@ -317,15 +317,16 @@ function selectNode(id) {
   const el = canvas.querySelector(`.node[data-id="${CSS.escape(id)}"]`);
   if (el) el.classList.add('selected');
 
-  // --- Prepara editor modifica ---
   const p = byId(id);
   if (p) {
     const editName = document.getElementById('editName');
     const editPhoto = document.getElementById('editPhoto');
     const editPhotoFile = document.getElementById('editPhotoFile');
+    const editGender = document.getElementById('editGender');
     if (editName) editName.value = p.name || "";
     if (editPhoto) editPhoto.value = p.photo || "";
     if (editPhotoFile) editPhotoFile.value = "";
+    if (editGender) editGender.value = p.gender || "";
     refreshEditSelectors(id);
   }
 }
@@ -347,8 +348,7 @@ canvas.addEventListener('mousedown', (e) => {
 
 window.addEventListener('mousemove', (e) => {
   if (!draggingNode || !dragStart) return;
-  const id = draggingNode;
-  const o = state.offsets[id] || (state.offsets[id] = {dx:0, dy:0});
+  const o = state.offsets[draggingNode] || (state.offsets[draggingNode] = {dx:0, dy:0});
   const k = state.transform.k || 1;
   o.dx = dragStart.dx0 + (e.clientX - dragStart.mx) / k;
   o.dy = dragStart.dy0 + (e.clientY - dragStart.my) / k;
@@ -359,9 +359,7 @@ window.addEventListener('mouseup', () => {
   if (!draggingNode) return;
   const el = canvas.querySelector(`.node[data-id="${CSS.escape(draggingNode)}"]`);
   if (el) el.classList.remove('dragging');
-  draggingNode = null;
-  dragStart = null;
-  saveState();
+  draggingNode = null; dragStart = null; saveState();
 });
 
 // ===== Pan & Zoom =====
@@ -377,8 +375,7 @@ window.addEventListener('mousemove', (e)=>{
   if (!panning) return;
   const dx = e.clientX - last.x; const dy = e.clientY - last.y;
   state.transform.x += dx; state.transform.y += dy; last = {x:e.clientX, y:e.clientY};
-  applyTransform();
-  saveState();
+  applyTransform(); saveState();
 });
 
 viewport.addEventListener('wheel', (e)=>{
@@ -392,20 +389,17 @@ viewport.addEventListener('wheel', (e)=>{
   state.transform.k = k;
   state.transform.x = cx - x0 * k;
   state.transform.y = cy - y0 * k;
-  applyTransform();
-  saveState();
+  applyTransform(); saveState();
 }, { passive: false });
 
 viewport.addEventListener('dblclick', ()=>{
   state.transform = { x: 300, y: 120, k: 1 };
-  applyTransform();
-  saveState();
+  applyTransform(); saveState();
 });
 
 function applyTransform() {
   const t = state.transform;
-  const m = `translate(${t.x}px, ${t.y}px) scale(${t.k})`;
-  canvas.style.transform = m;
+  canvas.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.k})`;
 }
 
 // ===== Fit to view & Print =====
@@ -424,8 +418,7 @@ function fitToView(pad = 40) {
   const cy = (minY + maxY) / 2;
   state.transform.x = vw/2 - cx * k;
   state.transform.y = vh/2 - cy * k;
-  applyTransform();
-  saveState();
+  applyTransform(); saveState();
 }
 
 function printView() {
@@ -455,6 +448,7 @@ document.getElementById('import').addEventListener('change', async (e)=>{
   try {
     const data = JSON.parse(text);
     if (!data.people || !data.order) throw new Error('Formato non valido');
+    Object.values(data.people).forEach(p => { if (p.gender == null) p.gender = ''; });
     state.people  = data.people;
     state.order   = data.order;
     state.nextId  = data.nextId || (Math.max(0, ...data.order.map(Number))+1);
@@ -473,10 +467,12 @@ const photoFileInput = document.getElementById('photoFile');
 const parentA = document.getElementById('parentA');
 const parentB = document.getElementById('parentB');
 const spouseWith = document.getElementById('spouseWith');
+const genderSelect = document.getElementById('gender');
 
 function refreshSelectors() {
   const options = ["", ...state.order];
   for (const sel of [parentA, parentB, spouseWith]) {
+    if (!sel) continue;
     const cur = sel.value;
     sel.innerHTML = "";
     const none = document.createElement('option'); none.value = ""; none.textContent = "(nessuno)"; sel.appendChild(none);
@@ -492,13 +488,15 @@ function refreshSelectors() {
 document.getElementById('add').addEventListener('click', async ()=>{
   const name = nameInput.value.trim();
   if (!name) { alert('Inserisci almeno il nome completo'); return; }
-  const pa = parentA.value || null;
-  const pb = parentB.value || null;
-  const sw = spouseWith.value || null;
+  const pa = parentA?.value || null;
+  const pb = parentB?.value || null;
+  const sw = spouseWith?.value || null;
+  const gender = (genderSelect?.value || '').toUpperCase();
   const file = photoFileInput.files?.[0] || null;
-  const id = await addPerson(name, photoInput.value.trim(), file, pa, pb, sw);
+  const id = await addPerson(name, photoInput.value.trim(), file, pa, pb, sw, gender);
   nameInput.value = ''; photoInput.value = ''; if (photoFileInput.value) photoFileInput.value = '';
-  parentA.value = ''; parentB.value = ''; spouseWith.value = '';
+  if (parentA) parentA.value = ''; if (parentB) parentB.value = '';
+  if (spouseWith) spouseWith.value = ''; if (genderSelect) genderSelect.value = '';
   selectNode(id);
 });
 
@@ -525,7 +523,7 @@ function refreshEditSelectors(currentId) {
     });
   });
 
-  // valorizza con i dati correnti
+  // set valori correnti
   const p = byId(currentId);
   if (!p) return;
   editParentA.value = p.parents[0] || "";
@@ -548,6 +546,7 @@ if (applyEditBtn) {
     const editParentA = document.getElementById('editParentA');
     const editParentB = document.getElementById('editParentB');
     const editSpouseWith = document.getElementById('editSpouseWith');
+    const editGender = document.getElementById('editGender');
 
     p.name = (editName?.value || "").trim();
     let photo = (editPhoto?.value || "").trim();
@@ -561,6 +560,9 @@ if (applyEditBtn) {
     p.parents = [];
     if (pa) p.parents.push(pa);
     if (pb && pb !== pa) p.parents.push(pb);
+
+    // sesso
+    p.gender = (editGender?.value || '').toUpperCase();
 
     // coniuge
     removeSpouseLinksOf(id);
@@ -595,11 +597,11 @@ function bootstrapDemo() {
   const idMadre = String(state.nextId++);
   const idTu    = String(state.nextId++);
 
-  state.people[idNonno] = { id:idNonno, name:'Giuseppe (nonno)', photo:'https://images.unsplash.com/photo-1602471060926-5f1e1c3f1b8a?q=80&w=300', parents:[] };
-  state.people[idNonna] = { id:idNonna, name:'Anna (nonna)',     photo:'https://images.unsplash.com/photo-1551836022-4c4c79ecde51?q=80&w=300', parents:[] };
-  state.people[idPadre] = { id:idPadre, name:'Marco (padre)',    photo:'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=300', parents:[idNonno, idNonna] };
-  state.people[idMadre] = { id:idMadre, name:'Lucia (madre)',    photo:'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=300', parents:[] };
-  state.people[idTu]    = { id:idTu,    name:'Renato (tu)',      photo:'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=300', parents:[idPadre, idMadre] };
+  state.people[idNonno] = { id:idNonno, name:'Giuseppe (nonno)', gender:'M', photo:'https://images.unsplash.com/photo-1602471060926-5f1e1c3f1b8a?q=80&w=300', parents:[] };
+  state.people[idNonna] = { id:idNonna, name:'Anna (nonna)',     gender:'F', photo:'https://images.unsplash.com/photo-1551836022-4c4c79ecde51?q=80&w=300', parents:[] };
+  state.people[idPadre] = { id:idPadre, name:'Marco (padre)',    gender:'M', photo:'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=300', parents:[idNonno, idNonna] };
+  state.people[idMadre] = { id:idMadre, name:'Lucia (madre)',    gender:'F', photo:'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=300', parents:[] };
+  state.people[idTu]    = { id:idTu,    name:'Renato (tu)',      gender:'M', photo:'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=300', parents:[idPadre, idMadre] };
   state.order.push(idNonno,idNonna,idPadre,idMadre,idTu);
   uniquePushSpouse(idNonno, idNonna);
   uniquePushSpouse(idPadre, idMadre);
