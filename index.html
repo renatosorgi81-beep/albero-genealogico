@@ -10,7 +10,10 @@
   <header>
     <div>
       <h1>Albero genealogico interattivo</h1>
-      <div class="hint">Card rettangolari a colori (blu=maschio, rosa=femmina). Genitori→figli (linea continua), coniugi (linea tratteggiata), fratelli (tratteggio fine). Trascina per muoverti, rotellina per zoom.</div>
+      <div class="hint">
+        Card rettangolari (blu=maschio, rosa=femmina). Coniugi: linea orizzontale. Figli: scendono dal giunto della coppia.
+        Collegamenti ortogonali per leggibilità. Trascina per muoverti, rotellina per zoom.
+      </div>
     </div>
 
     <div class="toolbar">
@@ -65,15 +68,15 @@
         <div class="card">
           <h2>Istruzioni veloci</h2>
           <ul class="mini-list">
-            <li class="mini-item"><span class="dot"></span>Compila <strong>Nome</strong> e (se vuoi) <strong>Foto</strong> via URL o file.</li>
-            <li class="mini-item"><span class="dot"></span>Imposta <strong>Sesso</strong> (blu=M, rosa=F) e relazioni: <strong>Genitori</strong> e/o <strong>Coniuge</strong>.</li>
-            <li class="mini-item"><span class="dot"></span>Clic su un nodo per <strong>selezionarlo</strong>, poi usa il pannello “Modifica”.</li>
-            <li class="mini-item"><span class="dot"></span>Trascina lo sfondo per muoverti, usa la rotellina per lo <strong>zoom</strong>.</li>
+            <li class="mini-item"><span class="dot"></span>Nome + foto (URL o file), <strong>Sesso</strong> (blu=M, rosa=F).</li>
+            <li class="mini-item"><span class="dot"></span>Imposta <strong>Coniuge</strong> per creare il giunto; i <strong>Figli</strong> scendono dal giunto.</li>
+            <li class="mini-item"><span class="dot"></span>Clic su una card per selezionare e modificare dal pannello.</li>
+            <li class="mini-item"><span class="dot"></span>Pan con trascinamento, zoom con rotellina, “⤢” adatta tutto.</li>
           </ul>
           <div class="legend legend-lines">
-            <div><span class="legend-line"></span> Genitore → figlio</div>
-            <div><span class="legend-line spouse"></span> Coniugi</div>
-            <div><span class="legend-line sibling"></span> Fratelli</div>
+            <div><span class="legend-line"></span> Genitore → figlio (dal giunto della coppia)</div>
+            <div><span class="legend-line spouse"></span> Coniugi (linea orizzontale)</div>
+            <div><span class="legend-line sibling"></span> Fratelli (opzionale)</div>
           </div>
         </div>
 
@@ -84,7 +87,7 @@
             <input id="editPhoto" placeholder="URL foto (https://...)" />
             <input id="editPhotoFile" type="file" accept="image/*" />
             <label class="legend" for="editGender">Sesso</label>
-            <select id="editGender" title="Colore del nodo: blu=maschio, rosa=femmina">
+            <select id="editGender">
               <option value="">(non specificato)</option>
               <option value="M">Maschio</option>
               <option value="F">Femmina</option>
@@ -94,7 +97,7 @@
             <select id="editSpouseWith"></select>
             <button class="primary" id="applyEdit">Applica modifiche</button>
           </div>
-          <div class="legend">Clicca un nodo nell'albero per caricare qui i suoi dati e modificarli.</div>
+          <div class="legend">Clicca una card nell'albero per caricare qui i suoi dati.</div>
         </div>
 
         <div class="card">
@@ -102,7 +105,7 @@
           <div class="mini-list">
             <button class="primary" id="export">Esporta JSON</button>
             <input type="file" id="import" accept="application/json" />
-            <div class="legend">Autosave attivo su questo browser. Puoi anche salvare/caricare file JSON.</div>
+            <div class="legend">Autosave nel browser. Puoi anche salvare/caricare JSON.</div>
           </div>
         </div>
 
@@ -112,7 +115,6 @@
     <div class="viewport" id="viewport">
       <div id="canvas">
         <svg class="links" id="links" xmlns="http://www.w3.org/2000/svg"></svg>
-        <!-- Nodes render here -->
       </div>
 
       <div class="pan-hint">💡 Trascina per muovere • Rotellina per zoom • Doppio click per centrare</div>
@@ -127,6 +129,6 @@
     </div>
   </main>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
