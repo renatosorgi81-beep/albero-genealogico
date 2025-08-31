@@ -7,12 +7,10 @@
   --danger:#ef4444;
   --line:#93a3b8;
 
-  /* colori sesso */
   --male:#25a0f0;
   --female:#f472b6;
   --unknown:#cbd5e1;
 
-  /* dimensioni card */
   --card-w:220px;
   --card-h:110px;
   --radius:14px;
@@ -23,7 +21,6 @@ html,body{
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,"Helvetica Neue",Arial,"Apple Color Emoji","Segoe UI Emoji";
 }
 
-/* ---- Header / toolbar ---- */
 header{
   position:sticky; top:0; z-index:5;
   display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -31,22 +28,8 @@ header{
 }
 header h1{margin:0; font-size:18px; font-weight:700;}
 header .hint{color:var(--muted); font-size:12px;}
-.toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:end;}
-.field{display:grid; gap:6px;}
-.field label{font-size:12px; color:var(--muted);}
-.field input,.field select{
-  height:36px; border:1px solid #e5e7eb; border-radius:10px; padding:0 10px; background:#fff; min-width:160px;
-}
-button.primary{
-  height:38px; padding:0 14px; border:0; border-radius:12px; background:var(--accent); color:#fff; font-weight:700; cursor:pointer;
-  box-shadow:0 4px 10px rgba(34,197,94,.25);
-}
-button.primary:active{transform:translateY(1px);}
-button.danger{
-  height:38px; padding:0 14px; border:1px solid #fecaca; border-radius:12px; background:#fee2e2; color:var(--danger); font-weight:700; cursor:pointer;
-}
+.toolbar{display:flex; gap:8px; align-items:center;}
 
-/* ---- Layout con sidebar adattiva ---- */
 main{
   height:calc(100% - 72px);
   display:grid;
@@ -58,14 +41,11 @@ aside{
 }
 aside h2{font-size:14px; margin:0 0 10px;}
 .stack{display:grid; gap:12px;}
-.card{
-  background:var(--card); border:1px solid #eef2f7; border-radius:14px; padding:12px; display:grid; gap:10px;
-}
+.card{background:var(--card); border:1px solid #eef2f7; border-radius:14px; padding:12px; display:grid; gap:10px;}
 .mini-list{display:grid; gap:8px;}
 .mini-item{display:flex; align-items:center; gap:8px; font-size:13px;}
 .dot{width:10px; height:10px; border-radius:50%; background:var(--accent);}
 
-/* ---- Canvas area ---- */
 .viewport{
   position:relative; overflow:hidden;
   background:radial-gradient(1200px 800px at 20% -10%, #ffffff, #f3f4f6);
@@ -74,15 +54,10 @@ aside h2{font-size:14px; margin:0 0 10px;}
 #canvas{position:absolute; inset:0; transform-origin:0 0; user-select:none;}
 svg.links{position:absolute; inset:0; overflow:visible; pointer-events:none;}
 
-/* ---- Link (connessioni) ---- */
 .link{stroke:var(--line); stroke-width:2; fill:none;}
 .link.spouse{stroke-dasharray:8 6;}
-.link.sibling{stroke:#c0cad9; stroke-dasharray:3 6; stroke-width:1.5; opacity:.95;}
 
-/* ---- Nodo stile “scheda” ---- */
-.node{
-  position:absolute; width:var(--card-w); height:var(--card-h); text-align:left; cursor:grab;
-}
+.node{position:absolute; width:var(--card-w); height:var(--card-h); text-align:left; cursor:grab;}
 .node.dragging{cursor:grabbing;}
 
 .person-card{
@@ -92,6 +67,7 @@ svg.links{position:absolute; inset:0; overflow:visible; pointer-events:none;}
   display:grid; grid-template-columns:64px 1fr; gap:10px; align-items:center;
   padding:10px 12px;
   box-shadow:0 6px 14px rgba(0,0,0,.05);
+  position:relative;
 }
 .node.male .person-card{ border-color:var(--male); }
 .node.female .person-card{ border-color:var(--female); }
@@ -114,33 +90,16 @@ svg.links{position:absolute; inset:0; overflow:visible; pointer-events:none;}
   box-shadow:0 0 0 3px rgba(14,165,233,.35), 0 8px 20px rgba(0,0,0,.08);
 }
 
-/* ---- HUD ---- */
-.legend{font-size:12px; color:var(--muted);}
-.legend-lines .legend-line{width:40px; height:0; border-top:2px solid var(--line); display:inline-block; vertical-align:middle;}
-.legend-lines .legend-line.spouse{border-top-style:dashed;}
-.legend-lines .legend-line.sibling{border-top:1.5px dashed #c0cad9;}
-
-/* pan hint + footer */
 .pan-hint{
   position:absolute; bottom:12px; left:12px;
   background:rgba(255,255,255,.92); padding:6px 10px; border-radius:10px; border:1px solid #e5e7eb; font-size:12px;
 }
-.footer-bar{position:absolute; right:12px; bottom:12px; display:flex; gap:8px;}
 .iconbtn{
   width:42px; height:42px; border:1px solid #e5e7eb; border-radius:12px; background:#fff; cursor:pointer; font-weight:900;
   box-shadow:0 4px 10px rgba(0,0,0,.06);
 }
 
-/* ---- Stampa pulita ---- */
-@media print{
-  header, aside, .pan-hint, .footer-bar{display:none !important;}
-  .viewport{position:static; overflow:visible; background:#fff !important;}
-  #canvas{transform:none !important;}
-  .person-card{box-shadow:none !important;}
-  .avatar{border:0 !important; box-shadow:none !important;}
-}
-
-/* ===== Overlay zoom card ===== */
+/* Overlay zoom card */
 .overlay-card {
   position: fixed;
   inset: 0;
@@ -150,48 +109,46 @@ svg.links{position:absolute; inset:0; overflow:visible; pointer-events:none;}
   justify-content: center;
   z-index: 9999;
 }
-
 .overlay-content {
   background: #fff;
   border-radius: 16px;
   padding: 20px;
-  max-width: 480px;
-  width: 90%;
+  max-width: 520px;
+  width: 92%;
   text-align: center;
   box-shadow: 0 8px 24px rgba(0,0,0,.25);
   position: relative;
 }
-
 .overlay-content img {
-  width: 220px;
-  height: 220px;
+  width: 240px;
+  height: 240px;
   object-fit: cover;
   border-radius: 50%;
   margin-bottom: 16px;
   border: 4px solid var(--accent);
 }
-
 .overlay-content h2 {
   margin: 0 0 10px;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
 }
-
-.overlay-content p {
-  margin: 4px 0;
-  color: var(--muted);
-  font-size: 14px;
-}
-
+.overlay-content p { margin: 4px 0; color: var(--muted); font-size: 14px; }
 .close-btn {
   position: absolute;
   top: 10px;
   right: 12px;
   border: 0;
   background: transparent;
-  font-size: 26px;
+  font-size: 28px;
   cursor: pointer;
   color: #333;
 }
 .close-btn:hover { color: var(--danger); }
 
+@media print{
+  header, aside, .pan-hint{display:none !important;}
+  .viewport{position:static; overflow:visible; background:#fff !important;}
+  #canvas{transform:none !important;}
+  .person-card{box-shadow:none !important;}
+  .avatar{border:0 !important; box-shadow:none !important;}
+}
