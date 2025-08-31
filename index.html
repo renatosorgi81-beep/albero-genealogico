@@ -10,125 +10,47 @@
   <header>
     <div>
       <h1>Albero genealogico interattivo</h1>
-      <div class="hint">
-        Card rettangolari (blu=maschio, rosa=femmina). Coniugi: linea orizzontale. Figli: scendono dal giunto della coppia.
-        Collegamenti ortogonali per leggibilità. Trascina per muoverti, rotellina per zoom.
-      </div>
+      <div class="hint">Schede rettangolari con foto, <strong>blu</strong> = maschio, <strong>rosa</strong> = femmina.
+        Linea <strong>continua</strong> genitore→figlio, <strong>tratteggiata</strong> coniugi.
+        Doppio click su una scheda per vederla ingrandita.</div>
     </div>
-
     <div class="toolbar">
-      <div class="field">
-        <label for="name">Nome completo</label>
-        <input id="name" placeholder="Es. Mario Rossi" />
-      </div>
-
-      <div class="field">
-        <label for="photo">URL foto (https://...)</label>
-        <input id="photo" placeholder="https://..." />
-      </div>
-
-      <div class="field">
-        <label for="photoFile">Foto locale</label>
-        <input id="photoFile" type="file" accept="image/*" />
-      </div>
-
-      <div class="field">
-        <label for="gender">Sesso</label>
-        <select id="gender">
-          <option value="">(non specificato)</option>
-          <option value="M">Maschio</option>
-          <option value="F">Femmina</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="parentA">Genitore A (opz.)</label>
-        <select id="parentA"></select>
-      </div>
-
-      <div class="field">
-        <label for="parentB">Genitore B (opz.)</label>
-        <select id="parentB"></select>
-      </div>
-
-      <div class="field">
-        <label for="spouseWith">Coniuge di (opz.)</label>
-        <select id="spouseWith"></select>
-      </div>
-
-      <button class="primary" id="add">Aggiungi persona</button>
-      <button class="danger" id="delete">Elimina selezionato</button>
+      <!-- Pulsanti di controllo vista -->
+      <button class="iconbtn" id="zoomOut" title="Zoom -">−</button>
+      <button class="iconbtn" id="reset" title="Reset vista">⟳</button>
+      <button class="iconbtn" id="fit" title="Adatta alla finestra">⤢</button>
+      <button class="iconbtn" id="print" title="Stampa / PDF">🖨️</button>
+      <button class="iconbtn" id="zoomIn" title="Zoom +">+</button>
     </div>
   </header>
 
   <main>
     <aside>
       <div class="stack">
-
         <div class="card">
-          <h2>Istruzioni veloci</h2>
+          <h2>Istruzioni</h2>
           <ul class="mini-list">
-            <li class="mini-item"><span class="dot"></span>Nome + foto (URL o file), <strong>Sesso</strong> (blu=M, rosa=F).</li>
-            <li class="mini-item"><span class="dot"></span>Imposta <strong>Coniuge</strong> per creare il giunto; i <strong>Figli</strong> scendono dal giunto.</li>
-            <li class="mini-item"><span class="dot"></span>Clic su una card per selezionare e modificare dal pannello.</li>
-            <li class="mini-item"><span class="dot"></span>Pan con trascinamento, zoom con rotellina, “⤢” adatta tutto.</li>
+            <li class="mini-item"><span class="dot"></span>Trascina lo sfondo per muoverti, usa la rotellina per lo zoom.</li>
+            <li class="mini-item"><span class="dot"></span>Doppio click su una scheda per aprire la vista grande.</li>
+            <li class="mini-item"><span class="dot"></span>Il file <code>data.json</code> in root viene caricato se presente.</li>
           </ul>
           <div class="legend legend-lines">
-            <div><span class="legend-line"></span> Genitore → figlio (dal giunto della coppia)</div>
-            <div><span class="legend-line spouse"></span> Coniugi (linea orizzontale)</div>
-            <div><span class="legend-line sibling"></span> Fratelli (opzionale)</div>
+            <div><span class="legend-line"></span> Genitore → Figlio</div>
+            <div><span class="legend-line spouse"></span> Coniugi</div>
           </div>
         </div>
-
-        <div class="card">
-          <h2>Modifica selezionato</h2>
-          <div class="stack">
-            <input id="editName" placeholder="Nome completo" />
-            <input id="editPhoto" placeholder="URL foto (https://...)" />
-            <input id="editPhotoFile" type="file" accept="image/*" />
-            <label class="legend" for="editGender">Sesso</label>
-            <select id="editGender">
-              <option value="">(non specificato)</option>
-              <option value="M">Maschio</option>
-              <option value="F">Femmina</option>
-            </select>
-            <select id="editParentA"></select>
-            <select id="editParentB"></select>
-            <select id="editSpouseWith"></select>
-            <button class="primary" id="applyEdit">Applica modifiche</button>
-          </div>
-          <div class="legend">Clicca una card nell'albero per caricare qui i suoi dati.</div>
-        </div>
-
-        <div class="card">
-          <h2>Esporta / Importa</h2>
-          <div class="mini-list">
-            <button class="primary" id="export">Esporta JSON</button>
-            <input type="file" id="import" accept="application/json" />
-            <div class="legend">Autosave nel browser. Puoi anche salvare/caricare JSON.</div>
-          </div>
-        </div>
-
       </div>
     </aside>
 
     <div class="viewport" id="viewport">
       <div id="canvas">
         <svg class="links" id="links" xmlns="http://www.w3.org/2000/svg"></svg>
+        <!-- i nodi vengono creati via JS -->
       </div>
-
-      <div class="pan-hint">💡 Trascina per muovere • Rotellina per zoom • Doppio click per centrare</div>
-
-      <div class="footer-bar">
-        <button class="iconbtn" id="zoomOut">−</button>
-        <button class="iconbtn" id="reset">⟳</button>
-        <button class="iconbtn" id="fit">⤢</button>
-        <button class="iconbtn" id="print">🖨️</button>
-        <button class="iconbtn" id="zoomIn">+</button>
-      </div>
+      <div class="pan-hint">💡 Trascina per muovere • Rotellina per zoom • Doppio click su una scheda per ingrandire</div>
     </div>
   </main>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js"></script>
 </body>
 </html>
