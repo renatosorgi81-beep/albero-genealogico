@@ -42,7 +42,11 @@ button.danger {
   height: 38px; padding: 0 14px; border: 1px solid #fecaca; border-radius: 12px; background: #fee2e2; color: var(--danger); font-weight: 700; cursor: pointer;
 }
 
-main { height: calc(100% - 72px); display: grid; grid-template-columns: 280px 1fr; }
+main {
+  height: calc(100% - 72px);
+  display: grid;
+  grid-template-columns: minmax(300px, 400px) 1fr; /* sidebar flessibile */
+}
 
 aside {
   border-right: 1px solid #eef2f7; background: var(--card);
