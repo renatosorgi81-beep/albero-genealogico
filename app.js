@@ -371,6 +371,37 @@ function bootstrapDemo() {
   uniquePushSpouse(idNonno, idNonna);
 }
 
+// ===== Zoom card con doppio click =====
+canvas.addEventListener('dblclick', e => {
+  const nodeEl = e.target.closest('.node');
+  if (!nodeEl) return;
+  const id = nodeEl.dataset.id;
+  const p = byId(id);
+  if (!p) return;
+
+  // crea overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay-card';
+  overlay.innerHTML = `
+    <div class="overlay-content">
+      <button class="close-btn">×</button>
+      <img src="${p.photo || 'https://via.placeholder.com/400?text=Foto'}" alt="${p.name}">
+      <h2>${p.name || 'Senza nome'}</h2>
+      <p><strong>ID:</strong> ${id}</p>
+      <p><strong>Genitori:</strong> ${p.parents?.join(', ') || '—'}</p>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // chiudi overlay
+  overlay.querySelector('.close-btn').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', ev => {
+    if (ev.target === overlay) overlay.remove();
+  });
+});
+
+
+
 (async function init(){
   let ok = loadState();
   if (!ok) {
