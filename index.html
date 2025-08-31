@@ -10,7 +10,7 @@
   <header>
     <div>
       <h1>Albero genealogico interattivo</h1>
-      <div class="hint">Foto tonde + nomi, collegamenti genitori → figli. Trascina per muoverti, rotellina per zoom.</div>
+      <div class="hint">Foto tonde + nomi, collegamenti genitori → figli e coniugi. Trascina per muoverti, rotellina per zoom.</div>
     </div>
     <div class="toolbar">
       <div class="field">
@@ -22,6 +22,10 @@
         <input id="photo" placeholder="https://..." />
       </div>
       <div class="field">
+        <label for="photoFile">Foto locale</label>
+        <input id="photoFile" type="file" accept="image/*" />
+      </div>
+      <div class="field">
         <label for="parentA">Genitore A (opz.)</label>
         <select id="parentA"></select>
       </div>
@@ -29,7 +33,12 @@
         <label for="parentB">Genitore B (opz.)</label>
         <select id="parentB"></select>
       </div>
+      <div class="field">
+        <label for="spouseWith">Coniuge di (opz.)</label>
+        <select id="spouseWith"></select>
+      </div>
       <button class="primary" id="add">Aggiungi persona</button>
+      <button class="danger" id="delete">Elimina selezionato</button>
     </div>
   </header>
 
@@ -39,10 +48,10 @@
         <div class="card">
           <h2>Istruzioni veloci</h2>
           <ul class="mini-list">
-            <li class="mini-item"><span class="dot"></span>Compila nome e (se vuoi) URL foto.</li>
-            <li class="mini-item"><span class="dot"></span>Seleziona fino a due genitori per posizionare i figli.</li>
-            <li class="mini-item"><span class="dot"></span>Clic su un nodo per selezionarlo.</li>
-            <li class="mini-item"><span class="dot"></span>Trascina lo sfondo per spostare la vista, rotellina per zoom.</li>
+            <li class="mini-item"><span class="dot"></span>Nome + foto (URL o file locale).</li>
+            <li class="mini-item"><span class="dot"></span>Imposta genitori e/o coniuge (opzionali).</li>
+            <li class="mini-item"><span class="dot"></span>Clic su un nodo per selezionarlo, poi “Elimina selezionato”.</li>
+            <li class="mini-item"><span class="dot"></span>Trascina sfondo per muoverti, rotellina per zoom.</li>
           </ul>
         </div>
         <div class="card">
@@ -50,7 +59,7 @@
           <div class="mini-list">
             <button class="primary" id="export">Esporta JSON</button>
             <input type="file" id="import" accept="application/json" />
-            <div class="legend">Puoi salvare il tuo albero come file JSON e ricaricarlo.</div>
+            <div class="legend">Autosave attivo su questo browser. Puoi anche salvare/caricare file JSON.</div>
           </div>
         </div>
       </div>
