@@ -10,39 +10,49 @@
   <header>
     <div>
       <h1>Albero genealogico interattivo</h1>
-      <div class="hint">Foto tonde + nomi, collegamenti genitori → figli, coniugi e fratelli. Trascina per muoverti, rotellina per zoom.</div>
+      <div class="hint">Card rettangolari a colori (blu=maschio, rosa=femmina). Genitori→figli (linea continua), coniugi (linea tratteggiata), fratelli (tratteggio fine). Trascina per muoverti, rotellina per zoom.</div>
     </div>
+
     <div class="toolbar">
       <div class="field">
         <label for="name">Nome completo</label>
-        <input id="name" placeholder="Es. Mario Rossi" 
-               title="Nome e cognome completi della persona da aggiungere" />
+        <input id="name" placeholder="Es. Mario Rossi" />
       </div>
+
       <div class="field">
         <label for="photo">URL foto (https://...)</label>
-        <input id="photo" placeholder="https://..." 
-               title="URL pubblico di una foto (opzionale). In alternativa usa 'Foto locale'." />
+        <input id="photo" placeholder="https://..." />
       </div>
+
       <div class="field">
         <label for="photoFile">Foto locale</label>
-        <input id="photoFile" type="file" accept="image/*" 
-               title="Carica una foto dal tuo computer. Ha priorità sull’URL se entrambi presenti." />
+        <input id="photoFile" type="file" accept="image/*" />
       </div>
+
+      <div class="field">
+        <label for="gender">Sesso</label>
+        <select id="gender">
+          <option value="">(non specificato)</option>
+          <option value="M">Maschio</option>
+          <option value="F">Femmina</option>
+        </select>
+      </div>
+
       <div class="field">
         <label for="parentA">Genitore A (opz.)</label>
-        <select id="parentA" 
-                title="Seleziona un nodo esistente come primo genitore (opzionale)"></select>
+        <select id="parentA"></select>
       </div>
+
       <div class="field">
         <label for="parentB">Genitore B (opz.)</label>
-        <select id="parentB" 
-                title="Seleziona un nodo diverso come secondo genitore (opzionale)"></select>
+        <select id="parentB"></select>
       </div>
+
       <div class="field">
         <label for="spouseWith">Coniuge di (opz.)</label>
-        <select id="spouseWith" 
-                title="Collega questa persona in matrimonio con un nodo esistente (opzionale)"></select>
+        <select id="spouseWith"></select>
       </div>
+
       <button class="primary" id="add">Aggiungi persona</button>
       <button class="danger" id="delete">Elimina selezionato</button>
     </div>
@@ -52,62 +62,41 @@
     <aside>
       <div class="stack">
 
-        <!-- Card: Istruzioni -->
         <div class="card">
           <h2>Istruzioni veloci</h2>
           <ul class="mini-list">
-            <li class="mini-item"><span class="dot"></span>Nome + foto (URL o file locale).</li>
-            <li class="mini-item"><span class="dot"></span>Imposta genitori e/o coniuge (opzionali).</li>
-            <li class="mini-item"><span class="dot"></span>Clic su un nodo per selezionarlo, poi “Elimina selezionato”.</li>
-            <li class="mini-item"><span class="dot"></span>Trascina sfondo per muoverti, rotellina per zoom.</li>
+            <li class="mini-item"><span class="dot"></span>Compila <strong>Nome</strong> e (se vuoi) <strong>Foto</strong> via URL o file.</li>
+            <li class="mini-item"><span class="dot"></span>Imposta <strong>Sesso</strong> (blu=M, rosa=F) e relazioni: <strong>Genitori</strong> e/o <strong>Coniuge</strong>.</li>
+            <li class="mini-item"><span class="dot"></span>Clic su un nodo per <strong>selezionarlo</strong>, poi usa il pannello “Modifica”.</li>
+            <li class="mini-item"><span class="dot"></span>Trascina lo sfondo per muoverti, usa la rotellina per lo <strong>zoom</strong>.</li>
           </ul>
+          <div class="legend legend-lines">
+            <div><span class="legend-line"></span> Genitore → figlio</div>
+            <div><span class="legend-line spouse"></span> Coniugi</div>
+            <div><span class="legend-line sibling"></span> Fratelli</div>
+          </div>
         </div>
 
-        <!-- Card: Modifica selezionato -->
-      
-<!-- Card: Modifica selezionato (sostituisci questo blocco al tuo attuale) -->
-<div class="card">
-  <h2>Modifica selezionato</h2>
-  <div class="stack">
-    <label class="legend" for="editName">Nome e cognome</label>
-    <input id="editName" placeholder="Nome completo"
-           title="Modifica nome/cognome della persona selezionata" />
+        <div class="card">
+          <h2>Modifica selezionato</h2>
+          <div class="stack">
+            <input id="editName" placeholder="Nome completo" />
+            <input id="editPhoto" placeholder="URL foto (https://...)" />
+            <input id="editPhotoFile" type="file" accept="image/*" />
+            <label class="legend" for="editGender">Sesso</label>
+            <select id="editGender" title="Colore del nodo: blu=maschio, rosa=femmina">
+              <option value="">(non specificato)</option>
+              <option value="M">Maschio</option>
+              <option value="F">Femmina</option>
+            </select>
+            <select id="editParentA"></select>
+            <select id="editParentB"></select>
+            <select id="editSpouseWith"></select>
+            <button class="primary" id="applyEdit">Applica modifiche</button>
+          </div>
+          <div class="legend">Clicca un nodo nell'albero per caricare qui i suoi dati e modificarli.</div>
+        </div>
 
-    <label class="legend" for="editPhoto">Foto (URL)</label>
-    <input id="editPhoto" placeholder="URL foto (https://...)"
-           title="URL pubblico della foto; puoi caricarne una locale sotto" />
-
-    <label class="legend" for="editPhotoFile">Foto locale (sovrascrive URL)</label>
-    <input id="editPhotoFile" type="file" accept="image/*"
-           title="Scegli una foto dal computer; ha priorità sull’URL" />
-
-    <label class="legend" for="editParentA">
-      Genitore A (obiettivo: creare figli e fratelli)
-    </label>
-    <select id="editParentA"
-            title="Primo genitore. Se due persone condividono lo stesso Genitore A/B risultano fratelli."></select>
-    <div class="legend">Tipico: “Padre” o “Genitore sconosciuto”.</div>
-
-    <label class="legend" for="editParentB">
-      Genitore B (opzionale, diverso da Genitore A)
-    </label>
-    <select id="editParentB"
-            title="Secondo genitore (opzionale). Deve essere diverso da Genitore A."></select>
-    <div class="legend">Tipico: “Madre”. Lascia vuoto se non noto.</div>
-
-    <label class="legend" for="editSpouseWith">
-      Coniuge di (linea tratteggiata)
-    </label>
-    <select id="editSpouseWith"
-            title="Collega questa persona in matrimonio con un nodo esistente."></select>
-    <div class="legend">Usa per coppie/sposi; non influenza la fratria.</div>
-
-    <button class="primary" id="applyEdit">Applica modifiche</button>
-  </div>
-  <div class="legend">Suggerimento: per segnare fratelli assegna lo stesso “Genitore A” (o B) a più persone.</div>
-</div>
-
-        <!-- Card: Esporta / Importa -->
         <div class="card">
           <h2>Esporta / Importa</h2>
           <div class="mini-list">
@@ -115,17 +104,6 @@
             <input type="file" id="import" accept="application/json" />
             <div class="legend">Autosave attivo su questo browser. Puoi anche salvare/caricare file JSON.</div>
           </div>
-        </div>
-
-        <!-- Card: Legenda linee -->
-        <div class="card">
-          <h2>Legenda linee</h2>
-          <ul class="mini-list legend-lines">
-            <li class="mini-item"><span class="legend-line"></span> Genitore → figlio (linea continua)</li>
-            <li class="mini-item"><span class="legend-line spouse"></span> Coniugi (linea tratteggiata)</li>
-            <li class="mini-item"><span class="legend-line sibling"></span> Fratelli (tratto corto)</li>
-          </ul>
-          <div class="legend">Per segnare fratelli: assegna lo stesso “Genitore A/B” a più persone.</div>
         </div>
 
       </div>
@@ -136,8 +114,9 @@
         <svg class="links" id="links" xmlns="http://www.w3.org/2000/svg"></svg>
         <!-- Nodes render here -->
       </div>
+
       <div class="pan-hint">💡 Trascina per muovere • Rotellina per zoom • Doppio click per centrare</div>
-      
+
       <div class="footer-bar">
         <button class="iconbtn" id="zoomOut">−</button>
         <button class="iconbtn" id="reset">⟳</button>
@@ -148,7 +127,6 @@
     </div>
   </main>
 
-  <!-- usa ?v=3 per forzare refresh -->
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
