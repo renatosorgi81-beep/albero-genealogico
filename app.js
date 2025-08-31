@@ -117,83 +117,108 @@ function fileToDataURL(file) {
   });
 }
 
-// ===== Operazioni =====
-async function addPerson(name, photoUrl, photoFile, parentA = null, parentB = null, spouseWith = null, gender = '') {
-  const id = String(state.nextId++);
-  let photo = (photoUrl || '').trim();
-  if (photoFile) {
-    try { photo = await fileToDataURL(photoFile); } catch {}
-  }
-  state.people[id] = { id, name: name.trim(), photo, parents: [], gender };
-  if (parentA) state.people[id].parents.push(parentA);
-  if (parentB && parentB !== parentA) state.people[id].parents.push(parentB);
-  state.order.push(id);
-  if (spouseWith) uniquePushSpouse(id, spouseWith);
-  layout();
-  render();
-  refreshSelectors();
-  saveState();
-  return id;
-}
+// ===== Layout (migliorato per generazioni / coniugi / fratelli) =====
+const positions = {}; // id -> {x,y}
 
-function deleteSelected() {
-  const id = state.selected;
-  if (!id) { alert('Seleziona prima una persona'); return; }
-  delete state.people[id];
-  delete state.offsets[id];
-  state.order = state.order.filter(x => x !== id);
-  removeParentRefsTo(id);
-  removeSpouseLinksOf(id);
-  state.selected = null;
-  layout(); render(); refreshSelectors(); saveState();
-}
-
-// ===== Layout =====
 function computeDepths() {
   const indeg = {}; const depth = {}; const children = {};
   for (const id of state.order) { indeg[id] = (byId(id).parents || []).length; children[id] = []; }
-  for (const id of state.order) { for (const p of byId(id).parents) { if (children[p]) children[p].push(id); } }
+  for (const id of state.order) { for (const p of byId(id).parents || []) { if (children[p]) children[p].push(id); } }
   const q = [];
   for (const id of state.order) if (indeg[id] === 0) { depth[id] = 0; q.push(id); }
   while (q.length) {
     const u = q.shift();
     for (const v of children[u]) {
       depth[v] = Math.max(depth[v] ?? 0, (depth[u] ?? 0) + 1);
-      indeg[v]--; if (indeg[v] === 0) q.push(v);
+      if (--indeg[v] === 0) q.push(v);
     }
   }
   for (const id of state.order) if (depth[id] == null) depth[id] = 0;
-  return { depth };
+  return depth;
 }
 
-const positions = {};
-function layout() {
-  const { depth } = computeDepths();
-  const byLevel = {};
-  for (const id of state.order) {
-    const d = depth[id];
-    if (!byLevel[d]) byLevel[d] = [];
-    byLevel[d].push(id);
+function layoutAuto() {
+  const depth = computeDepths();
+  const levelGap = 220;  // in sync con CSS
+  const nodeGapX = 260;
+
+  // 1) Gruppi per livello
+  const levels = {};
+  state.order.forEach(id => {
+    const d = depth[id] || 0;
+    (levels[d] ||= []).push(id);
+  });
+
+  // 2) Per ogni livello, costruisci gruppi per "coppia genitori" (fratelli)
+  const siblingGroupsPerLevel = {};
+  for (const [lvl, ids] of Object.entries(levels)) {
+    const map = {};
+    ids.forEach(id => {
+      const ps = (byId(id).parents || []).slice().sort();
+      const key = ps.join('|') || `root-${id}`;
+      (map[key] ||= []).push(id);
+    });
+    siblingGroupsPerLevel[lvl] = Object.values(map);
   }
-  const levelGap = 220; const nodeGap = 260;
-  for (const [lvl, arr] of Object.entries(byLevel)) {
-    arr.forEach((id, i) => {
-      positions[id] = { x: i * nodeGap, y: Number(lvl) * levelGap };
+
+  // 3) Posiziona gruppi in fila, i figli centrati rispetto ai genitori
+  let xCursor = 0;
+  for (const lvlStr of Object.keys(siblingGroupsPerLevel)) {
+    const lvl = Number(lvlStr);
+    xCursor = 0;
+    const groups = siblingGroupsPerLevel[lvl];
+    groups.forEach(group => {
+      // ordina l'interno del gruppo per nome per stabilità
+      group.sort((a,b) => (byId(a).name||'').localeCompare(byId(b).name||''));
+
+      // larghezza del gruppo = N * nodeGapX
+      const groupWidth = Math.max(group.length * nodeGapX, nodeGapX);
+      // posizionamento base del gruppo
+      let gx = xCursor;
+      let gy = lvl * levelGap;
+
+      // Se ha due genitori, centra rispetto a metà tra i genitori
+      const ps = (byId(group[0]).parents || []).slice(0,2);
+      if (ps.length) {
+        const pxs = ps.map(p => positions[p]?.x ?? null).filter(v => v!=null);
+        if (pxs.length) {
+          const center = (Math.min(...pxs) + Math.max(...pxs)) / 2;
+          gx = center - (groupWidth - nodeGapX) / 2;
+        }
+      }
+
+      // posiziona i membri del gruppo in riga
+      group.forEach((id, i) => {
+        positions[id] = { x: gx + i*nodeGapX, y: gy };
+      });
+
+      xCursor = Math.max(xCursor + groupWidth + nodeGapX*0.5, gx + groupWidth + nodeGapX*0.5);
     });
   }
-  for (const id of state.order) {
-    const ps = byId(id).parents;
-    if (ps && ps.length) {
-      const xs = ps.map(p => positions[p]?.x).filter(x => x != null);
-      if (xs.length) {
-        const avg = xs.reduce((a,b)=>a+b,0)/xs.length;
-        positions[id].x = avg;
-      }
+
+  // 4) Coniugi sullo stesso livello affiancati (se non già vicini)
+  const spouseGap = 140;
+  state.spouses.forEach(([a,b]) => {
+    const pa = positions[a], pb = positions[b];
+    if (!pa || !pb) return;
+    // porta b vicino ad a sullo stesso livello
+    const targetY = Math.min(pa.y, pb.y);
+    pa.y = pb.y = targetY; // stesso livello
+    if (Math.abs(pa.x - pb.x) > spouseGap) {
+      // metti b a destra di a
+      const center = (pa.x + pb.x)/2;
+      positions[a].x = center - spouseGap/2;
+      positions[b].x = center + spouseGap/2;
     }
-  }
+  });
+
+  // 5) Normalizza per evitare x negative
   const xs = Object.values(positions).map(p=>p.x);
   const minX = Math.min(...xs, 0);
   if (minX < 0) for (const id of state.order) positions[id].x -= minX;
+
+  // 6) Applica offset manuali
+  // (fatto in getPos)
 }
 
 function getPos(id) {
@@ -214,13 +239,15 @@ function render() {
     node.className = 'node ' + (p.gender === 'M' ? 'male' : p.gender === 'F' ? 'female' : '');
     node.style.left = (pos.x + 30) + 'px'; node.style.top = (pos.y + 30) + 'px';
     node.dataset.id = id;
+    const depth = Math.round(pos.y / 220); // livello approssimato
+    const parentsNames = (p.parents || []).map(pid => byId(pid)?.name || pid).join(' & ');
     node.innerHTML = `
       <div class="person-card">
         <span class="badge-sex">${p.gender || ''}</span>
         <img class="avatar" src="${p.photo || 'https://via.placeholder.com/200?text=Foto'}" alt="${p.name}">
         <div>
           <div class="label">${p.name || 'Senza nome'}</div>
-          <div class="sub">ID ${id}</div>
+          <div class="sub ${document.getElementById('toggleNames')?.checked ? '' : 'hidden'}">Gen. ${depth} ${parentsNames ? '• Figlio di ' + parentsNames : ''}</div>
         </div>
       </div>
     `;
@@ -238,28 +265,51 @@ function pathCubic(x1,y1,x2,y2) {
 
 function drawLinks() {
   linksSvg.innerHTML = '';
+
+  // Genitore→Figlio
   for (const id of state.order) {
     const child = getPos(id);
     const ps = byId(id).parents || [];
     for (const pId of ps) {
       const par = getPos(pId);
       if (!par) continue;
-      const x1 = par.x + 110; const y1 = par.y + 110;
-      const x2 = child.x + 110; const y2 = child.y + 20;
+      const x1 = par.x + 120; const y1 = par.y + 110;
+      const x2 = child.x + 120; const y2 = child.y + 20;
       const path = document.createElementNS('http://www.w3.org/2000/svg','path');
       path.setAttribute('class','link');
       path.setAttribute('d', pathCubic(x1,y1,x2,y2));
       linksSvg.appendChild(path);
     }
   }
+
+  // Coniugi
   for (const [a,b] of state.spouses) {
     const pa = getPos(a), pb = getPos(b);
     if (!pa || !pb) continue;
-    const x1 = pa.x + 110, y1 = pa.y + 60;
-    const x2 = pb.x + 110, y2 = pb.y + 60;
+    const x1 = pa.x + 120, y1 = pa.y + 60;
+    const x2 = pb.x + 120, y2 = pb.y + 60;
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('class','link spouse');
     path.setAttribute('d', pathCubic(x1,y1,x2,y2));
+    linksSvg.appendChild(path);
+  }
+
+  // Staffe fratelli (per gruppi con stessi genitori)
+  const groups = new Map();
+  for (const id of state.order) {
+    const key = (byId(id).parents || []).slice().sort().join('|');
+    if (!key) continue;
+    (groups.get(key) || groups.set(key, [])).push(id);
+  }
+  for (const arr of groups.values()) {
+    if (arr.length < 2) continue;
+    arr.sort((a,b) => getPos(a).x - getPos(b).x);
+    const first = getPos(arr[0]);
+    const last  = getPos(arr[arr.length-1]);
+    const y = first.y + 60;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('class','link siblings');
+    path.setAttribute('d', `M ${first.x+40} ${y} H ${last.x + 200}`);
     linksSvg.appendChild(path);
   }
 }
@@ -273,7 +323,6 @@ function selectNode(id) {
 
   const p = byId(id);
   if (p) {
-    // campi testo/foto/sesso
     const editName = document.getElementById('editName');
     const editPhoto = document.getElementById('editPhoto');
     const editPhotoFile = document.getElementById('editPhotoFile');
@@ -283,7 +332,6 @@ function selectNode(id) {
     if (editPhotoFile) editPhotoFile.value = "";
     if (editGender) editGender.value = p.gender || "";
 
-    // select correlati
     const editParentA = document.getElementById('editParentA');
     const editParentB = document.getElementById('editParentB');
     const editSpouseWith = document.getElementById('editSpouseWith');
@@ -309,6 +357,36 @@ function selectNode(id) {
   }
 }
 
+// ===== Drag & drop nodi manuale =====
+let draggingNode = null, dragStart = null;
+canvas.addEventListener('mousedown', (e) => {
+  const nodeEl = e.target.closest('.node');
+  if (!nodeEl) return;
+  const id = nodeEl.dataset.id;
+  draggingNode = id;
+  nodeEl.classList.add('dragging');
+  const o = state.offsets[id] || (state.offsets[id] = {dx:0, dy:0});
+  dragStart = { mx: e.clientX, my: e.clientY, dx0: o.dx, dy0: o.dy };
+  e.preventDefault();
+});
+window.addEventListener('mousemove', (e) => {
+  if (!draggingNode || !dragStart) return;
+  const id = draggingNode;
+  const o = state.offsets[id] || (state.offsets[id] = {dx:0, dy:0});
+  const k = state.transform.k || 1;
+  o.dx = dragStart.dx0 + (e.clientX - dragStart.mx) / k;
+  o.dy = dragStart.dy0 + (e.clientY - dragStart.my) / k;
+  render();
+});
+window.addEventListener('mouseup', () => {
+  if (!draggingNode) return;
+  const el = canvas.querySelector(`.node[data-id="${CSS.escape(draggingNode)}"]`);
+  if (el) el.classList.remove('dragging');
+  draggingNode = null;
+  dragStart = null;
+  saveState();
+});
+
 // ===== Pan & Zoom =====
 const viewport = document.getElementById('viewport');
 let panning = false; let last = {x:0,y:0};
@@ -325,7 +403,6 @@ window.addEventListener('mousemove', (e)=>{
   applyTransform();
   saveState();
 });
-
 viewport.addEventListener('wheel', (e)=>{
   e.preventDefault();
   const delta = Math.sign(e.deltaY) * 0.1;
@@ -340,7 +417,6 @@ viewport.addEventListener('wheel', (e)=>{
   applyTransform();
   saveState();
 }, { passive: false });
-
 viewport.addEventListener('dblclick', ()=>{
   state.transform = { x: 300, y: 120, k: 1 };
   applyTransform();
@@ -353,7 +429,7 @@ function applyTransform() {
   canvas.style.transform = m;
 }
 
-// ===== Fit to view & Print =====
+// ===== Fit / Print / Auto-layout =====
 function computeBounds() {
   if (state.order.length === 0) return {minX:0, minY:0, maxX:0, maxY:0};
   let minX = +Infinity, minY = +Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -361,7 +437,7 @@ function computeBounds() {
     const {x,y} = getPos(id);
     const left = x + 30;
     const top  = y + 30;
-    const right = left + 220;
+    const right = left + 240;
     const bottom = top + 110;
     if (left < minX) minX = left;
     if (top  < minY) minY = top;
@@ -397,18 +473,20 @@ function printView() {
   window.addEventListener('afterprint', restore);
   setTimeout(()=>window.print(), 100);
 }
+function autoLayoutAndFit() {
+  layoutAuto();
+  render();
+  fitToView(60);
+}
 
-// ===== Zoom card con doppio click (stopPropagation per non resettare) =====
+// ===== Overlay zoom card (doppio click su scheda) =====
 canvas.addEventListener('dblclick', e => {
   const nodeEl = e.target.closest('.node');
   if (!nodeEl) return;
   e.preventDefault();
   e.stopPropagation();
-
   const id = nodeEl.dataset.id;
-  const p = byId(id);
-  if (!p) return;
-
+  const p = byId(id); if (!p) return;
   const overlay = document.createElement('div');
   overlay.className = 'overlay-card';
   overlay.innerHTML = `
@@ -417,17 +495,15 @@ canvas.addEventListener('dblclick', e => {
       <img src="${p.photo || 'https://via.placeholder.com/400?text=Foto'}" alt="${p.name}">
       <h2>${p.name || 'Senza nome'}</h2>
       <p><strong>ID:</strong> ${id}</p>
-      <p><strong>Genitori:</strong> ${p.parents?.join(', ') || '—'}</p>
+      <p><strong>Sesso:</strong> ${p.gender || '—'}</p>
+      <p><strong>Genitori:</strong> ${(p.parents||[]).map(pid => byId(pid)?.name || pid).join(' & ') || '—'}</p>
     </div>
   `;
   document.body.appendChild(overlay);
-
   overlay.querySelector('.close-btn').addEventListener('click', () => overlay.remove());
   overlay.addEventListener('click', ev => { if (ev.target === overlay) overlay.remove(); });
 });
-window.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Escape') document.querySelector('.overlay-card')?.remove();
-});
+window.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') document.querySelector('.overlay-card')?.remove(); });
 
 // ===== Controls buttons =====
 document.getElementById('zoomIn')?.addEventListener('click', () => {
@@ -442,7 +518,18 @@ document.getElementById('reset')?.addEventListener('click', () => {
   state.transform = { x: 300, y: 120, k: 1 }; applyTransform(); saveState();
 });
 document.getElementById('fit')?.addEventListener('click', () => fitToView(40));
+document.getElementById('autoLayout')?.addEventListener('click', () => autoLayoutAndFit());
 document.getElementById('print')?.addEventListener('click', () => printView());
+
+// Toggles visuali
+const viewportEl = document.getElementById('viewport');
+document.getElementById('toggleBands')?.addEventListener('change', (e) => {
+  viewportEl.classList.toggle('gen-bands', e.target.checked);
+});
+document.getElementById('toggleGrid')?.addEventListener('change', (e) => {
+  viewportEl.classList.toggle('grid', e.target.checked);
+});
+document.getElementById('toggleNames')?.addEventListener('change', () => render());
 
 // ===== UI: riferimenti (aggiungi/edita) =====
 const nameInput = document.getElementById('name');
@@ -500,9 +587,10 @@ document.getElementById('add')?.addEventListener('click', async () => {
   if (spouseWith) spouseWith.value = "";
 
   selectNode(id);
+  autoLayoutAndFit();
 });
 
-// Applica modifiche
+// Modifica
 document.getElementById('applyEdit')?.addEventListener('click', async () => {
   const id = state.selected;
   if (!id) { alert("Seleziona prima una scheda"); return; }
@@ -525,12 +613,16 @@ document.getElementById('applyEdit')?.addEventListener('click', async () => {
   const sw = editSpouseWith?.value || null;
   if (sw) uniquePushSpouse(id, sw);
 
-  layout(); render(); refreshSelectors(); saveState();
+  render(); refreshSelectors(); saveState();
+  autoLayoutAndFit();
   alert("Dati aggiornati!");
 });
 
 // Elimina selezionato
-document.getElementById('delete')?.addEventListener('click', deleteSelected);
+document.getElementById('delete')?.addEventListener('click', () => {
+  deleteSelected();
+  autoLayoutAndFit();
+});
 
 // Esporta
 document.getElementById('export')?.addEventListener('click', () => {
@@ -548,7 +640,8 @@ document.getElementById('import')?.addEventListener('change', async (e) => {
     const data = JSON.parse(text);
     if (!data.people || !data.order) throw new Error('Formato non valido');
     normalizeAndAdoptState(data);
-    layout(); render(); refreshSelectors(); saveState();
+    autoLayoutAndFit();
+    refreshSelectors(); saveState();
     alert('Albero importato.');
   } catch (err) {
     alert('Errore importazione: ' + err.message);
@@ -558,9 +651,40 @@ document.getElementById('import')?.addEventListener('change', async (e) => {
 document.getElementById('reloadRemote')?.addEventListener('click', async () => {
   const ok = await loadFromUrlIfPresent();
   if (!ok) { alert("Nessun data.json trovato su questa origine."); return; }
-  layout(); render(); refreshSelectors(); saveState();
+  autoLayoutAndFit(); refreshSelectors(); saveState();
   alert("Dati ricaricati da data.json!");
 });
+
+// ===== Stato: addPerson / deleteSelected sfruttano layoutAuto =====
+async function addPerson(name, photoUrl, photoFile, parentA = null, parentB = null, spouseWith = null, gender = '') {
+  const id = String(state.nextId++);
+  let photo = (photoUrl || '').trim();
+  if (photoFile) {
+    try { photo = await fileToDataURL(photoFile); } catch {}
+  }
+  state.people[id] = { id, name: name.trim(), photo, parents: [], gender };
+  if (parentA) state.people[id].parents.push(parentA);
+  if (parentB && parentB !== parentA) state.people[id].parents.push(parentB);
+  state.order.push(id);
+  if (spouseWith) uniquePushSpouse(id, spouseWith);
+  layoutAuto();
+  render();
+  refreshSelectors();
+  saveState();
+  return id;
+}
+
+function deleteSelected() {
+  const id = state.selected;
+  if (!id) { alert('Seleziona prima una persona'); return; }
+  delete state.people[id];
+  delete state.offsets[id];
+  state.order = state.order.filter(x => x !== id);
+  removeParentRefsTo(id);
+  removeSpouseLinksOf(id);
+  state.selected = null;
+  layoutAuto(); render(); refreshSelectors(); saveState();
+}
 
 // ===== Avvio =====
 function bootstrapDemo() {
@@ -584,5 +708,5 @@ function bootstrapDemo() {
   let ok = loadState();
   if (!ok) ok = await loadFromUrlIfPresent();
   if (!ok) bootstrapDemo();
-  layout(); render(); refreshSelectors(); saveState();
+  layoutAuto(); render(); refreshSelectors(); saveState();
 })();
